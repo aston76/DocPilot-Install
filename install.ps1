@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $releases = Invoke-RestMethod 'https://api.github.com/repos/aston76/DocPilot-Install/releases?per_page=1'
 $release = $releases | Select-Object -First 1
-if (-not $release) { throw 'Aucune version Windows publiée sur GitHub.' }
+if (-not $release) { throw 'Aucune version Windows publiee sur GitHub.' }
 $archive = $release.assets | Where-Object { $_.name -eq 'DocPilot-Windows-portable.zip' } | Select-Object -First 1
 $checksum = $release.assets | Where-Object { $_.name -eq 'DocPilot-Windows-portable.zip.sha256' } | Select-Object -First 1
 if (-not $archive -or -not $checksum) { throw 'Version Windows ou empreinte introuvable sur GitHub.' }
@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Path $temp | Out-Null
 try {
     $zip = Join-Path $temp 'DocPilot-Windows-portable.zip'
     $shaFile = Join-Path $temp 'DocPilot-Windows-portable.zip.sha256'
-    Write-Host 'Téléchargement de DocPilot depuis GitHub…'
+    Write-Host 'Telechargement de DocPilot depuis GitHub...'
     Invoke-WebRequest $archive.browser_download_url -OutFile $zip
     Invoke-WebRequest $checksum.browser_download_url -OutFile $shaFile
     $expected = ((Get-Content $shaFile -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
@@ -21,10 +21,10 @@ try {
     $folder = Join-Path $temp 'files'
     Expand-Archive $zip -DestinationPath $folder
     $installer = Join-Path $folder 'Install-DocPilot.ps1'
-    if (-not (Test-Path $installer)) { throw 'Le script d’installation manque dans le paquet.' }
+    if (-not (Test-Path $installer)) { throw 'Le script d installation manque dans le paquet.' }
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
-    if ($LASTEXITCODE -ne 0) { throw "Installation échouée (code $LASTEXITCODE)." }
-    Write-Host 'Installation terminée. Lancez DocPilot depuis le menu Démarrer.'
+    if ($LASTEXITCODE -ne 0) { throw "Installation echouee (code $LASTEXITCODE)." }
+    Write-Host 'Installation terminee. Lancez DocPilot depuis le menu Demarrer.'
 } finally {
     Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
 }
