@@ -1,7 +1,9 @@
 # Installe DocPilot pour l'utilisateur Windows courant, sans droits administrateur.
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$release = Invoke-RestMethod 'https://api.github.com/repos/aston76/DocPilot-Install/releases/latest'
+$releases = Invoke-RestMethod 'https://api.github.com/repos/aston76/DocPilot-Install/releases?per_page=1'
+$release = $releases | Select-Object -First 1
+if (-not $release) { throw 'Aucune version Windows publiée sur GitHub.' }
 $archive = $release.assets | Where-Object { $_.name -eq 'DocPilot-Windows-portable.zip' } | Select-Object -First 1
 $checksum = $release.assets | Where-Object { $_.name -eq 'DocPilot-Windows-portable.zip.sha256' } | Select-Object -First 1
 if (-not $archive -or -not $checksum) { throw 'Version Windows ou empreinte introuvable sur GitHub.' }
