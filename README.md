@@ -10,6 +10,8 @@ $p="$env:TEMP\install-docpilot.ps1"; Invoke-WebRequest https://raw.githubusercon
 
 Le script récupère la dernière version publiée depuis GitHub, vérifie son empreinte SHA-256, l'extrait puis installe DocPilot dans `%LOCALAPPDATA%\Programs\DocPilot`. Les données seront dans `%LOCALAPPDATA%\DocPilot` et ne font pas partie du téléchargement. Aucun Python ou Node n'est requis sur le PC du client.
 
+La version `v0.1.0-beta.6` corrige un blocage du lancement Windows : la vérification du port local expire après deux secondes. Le paquet reprend la bêta 5 avec uniquement ce correctif du lanceur.
+
 Les nouveautés sont décrites dans [CHANGELOG.md](CHANGELOG.md). Les paquets sont disponibles dans les [versions publiées](https://github.com/aston76/DocPilot-Install/releases).
 
 La mise à jour conserve les documents, les réglages et la connexion locale. Si DocPilot est ouvert, l'installateur demande son arrêt gracieux et attend la fin des traitements ; il interrompt l'installation si l'application ne peut pas être fermée. Un raccourci est ajouté au Bureau et au menu Démarrer.
