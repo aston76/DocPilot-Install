@@ -1,8 +1,8 @@
 # Installe DocPilot pour l'utilisateur Windows courant, sans droits administrateur.
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$releases = Invoke-RestMethod 'https://api.github.com/repos/aston76/DocPilot-Install/releases?per_page=1'
-$release = $releases | Select-Object -First 1
+$releases = Invoke-RestMethod 'https://api.github.com/repos/aston76/DocPilot-Install/releases?per_page=20'
+$release = $releases | Where-Object { -not $_.draft } | Select-Object -First 1
 if (-not $release) { throw 'Aucune version Windows publiee sur GitHub.' }
 $archive = $release.assets | Where-Object { $_.name -eq 'DocPilot-Windows-portable.zip' } | Select-Object -First 1
 $checksum = $release.assets | Where-Object { $_.name -eq 'DocPilot-Windows-portable.zip.sha256' } | Select-Object -First 1
@@ -26,5 +26,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Installation echouee (code $LASTEXITCODE)." }
     Write-Host 'Installation terminee. Lancez DocPilot depuis le menu Demarrer.'
 } finally {
-    Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
+    $resolvedTemp = [IO.Path]::GetFullPath($temp)
+    $allowedTemp = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+    if ($resolvedTemp.StartsWith($allowedTemp, [StringComparison]::OrdinalIgnoreCase) -and
+        ([IO.Path]::GetFileName($resolvedTemp) -like 'DocPilot-Install-*')) {
+        Remove-Item -LiteralPath $resolvedTemp -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }

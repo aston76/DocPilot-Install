@@ -19,7 +19,7 @@ jobs:
         run: |
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
           if (-not (Test-Path $exe)) { throw 'DocPilot.exe absent après installation' }
-          $process = Start-Process $exe -PassThru
+          $process = Start-Process $exe -PassThru -WindowStyle Hidden
           try {
             $healthy = $false
             for ($i = 0; $i -lt 40; $i++) {
@@ -36,6 +36,10 @@ jobs:
             if ($documents -ne '[]' -or $entities -ne '[]' -or $creditors -ne '[]') {
               throw 'La nouvelle installation contient des données préchargées'
             }
+            $index = Invoke-RestMethod http://127.0.0.1:8765/api/v1/archive/sha256
+            if ($index.indexed_files -ne 0 -or $index.running) {
+              throw 'La nouvelle installation contient un index privé ou un scan inattendu'
+            }
             $page = Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing
             if ($page.StatusCode -ne 200 -or $page.Content -notmatch 'DocPilot') { throw 'Interface inaccessible' }
           } finally { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
@@ -43,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
-          $process = Start-Process $exe -PassThru
+          $process = Start-Process $exe -PassThru -WindowStyle Hidden
           try {
             for ($i = 0; $i -lt 60; $i++) {
               try { $health = Invoke-RestMethod http://127.0.0.1:8765/api/v1/health -TimeoutSec 2; break } catch { Start-Sleep -Seconds 1 }
@@ -51,7 +55,7 @@ jobs:
             $entity = Invoke-RestMethod http://127.0.0.1:8765/api/v1/legal-entities -Method Post -ContentType 'application/json' -Body '{"name":"Upgrade test entity","identifiers":[]}'
             ./install.ps1
             if (-not $process.HasExited) { throw 'Old app was not closed before updating' }
-            $updated = Start-Process $exe -PassThru
+            $updated = Start-Process $exe -PassThru -WindowStyle Hidden
             try {
               $healthy = $false
               for ($i = 0; $i -lt 60; $i++) {
