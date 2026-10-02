@@ -1,0 +1,28 @@
+name: Publish verified beta 6 hotfix
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reproduce and verify the public package
+        run: python tools/build_beta6.py
+      - name: Upload verified package and publish the existing draft
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload v0.1.0-beta.6 release-package/DocPilot-Windows-portable.zip release-package/DocPilot-Windows-portable.zip.sha256 --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
+          gh release edit v0.1.0-beta.6 --draft=false --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
