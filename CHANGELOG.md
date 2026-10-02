@@ -1,5 +1,12 @@
 # Versions de DocPilot
 
+## v0.1.0-beta.6 — 2 octobre 2026
+
+- Correction du blocage au démarrage lorsque la connexion de contrôle à `127.0.0.1:8765` ne répond pas : délai maximal de deux secondes avant le démarrage du serveur.
+- Correctif ciblé du lanceur de la bêta 5 ; tous les autres fichiers du paquet sont identiques. Script de reproduction : `tools/hotfix_probe_timeout.py` (Python 3.12, réservé à la préparation du paquet).
+- Vérifications : reproduction exacte de l’exécutable corrigé, intégrité du ZIP, démarrage Windows, réponse HTTP 200 de l’API de santé et de l’interface. Installation sur un poste Windows vierge non vérifiée.
+- SHA-256 du ZIP : `4298cb1c9ae6e4c5d7d1c64be1a28ecb2366fcff1f43fc4ba0570413a329634f`.
+
 ## v0.1.0-beta.5 — 2 octobre 2026
 
 - Interface simplifiée : Classer, Documents et Réglages ; une seule liste par vue.
