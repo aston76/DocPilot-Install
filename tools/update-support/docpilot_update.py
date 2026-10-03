@@ -3,7 +3,7 @@ import json, re, subprocess, sys, threading, urllib.request
 from pathlib import Path
 
 REPOSITORY = 'aston76/DocPilot-Install'
-VERSION = 'v0.1.0-beta.7'
+VERSION = 'v0.1.0-beta.8'
 _lock = threading.Lock()
 _state = {'current': VERSION, 'latest': None, 'available': False, 'status': 'idle', 'message': ''}
 

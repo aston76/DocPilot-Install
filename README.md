@@ -1,6 +1,6 @@
 # Installation Windows de DocPilot
 
-Ce dépôt public ne contient aucun code métier ni aucune donnée client. Il héberge uniquement le script de téléchargement et l'archive d'installation Windows.
+Ce dépôt public héberge les scripts d’installation Windows et les modules de correctifs distribués avec DocPilot. Il ne contient aucune donnée client.
 
 Dans PowerShell sur le PC du client, exécuter :
 
@@ -10,7 +10,7 @@ $p="$env:TEMP\install-docpilot.ps1"; Invoke-WebRequest https://raw.githubusercon
 
 Le script récupère la dernière version publiée depuis GitHub, vérifie son empreinte SHA-256, l'extrait puis installe DocPilot dans `%LOCALAPPDATA%\Programs\DocPilot`. Les données seront dans `%LOCALAPPDATA%\DocPilot` et ne font pas partie du téléchargement. Aucun Python ou Node n'est requis sur le PC du client.
 
-La version `v0.1.0-beta.6` corrige un blocage du lancement Windows : la vérification du port local expire après deux secondes. Le paquet reprend la bêta 5 avec uniquement ce correctif du lanceur.
+La version `v0.1.0-beta.8` permet de choisir et confirmer le dossier directement dans la liste des documents. Pour un fournisseur absent du catalogue, un nouveau dossier peut être proposé et créé après validation explicite. Le correctif de démarrage beta.6 et les mises à jour automatiques beta.7 sont conservés.
 
 Les nouveautés sont décrites dans [CHANGELOG.md](CHANGELOG.md). Les paquets sont disponibles dans les [versions publiées](https://github.com/aston76/DocPilot-Install/releases).
 

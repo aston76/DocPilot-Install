@@ -1,5 +1,13 @@
 # Versions de DocPilot
 
+## v0.1.0-beta.8 — 3 octobre 2026
+
+- Chemin proposé et modifiable directement dans la liste, sans ouvrir la fiche complète.
+- Pour un fournisseur absent du catalogue, proposition d’un nouveau dossier sous la catégorie du document ; création après validation explicite uniquement.
+- Aucun millésime inventé pour une destination confirmée manuellement.
+- Contrôles conservés : doublon SHA-256, données inchangées avant confirmation, confinement dans l’archive, simulation et refus d’écraser un fichier existant.
+- Versions du paquet et du contrôle automatique synchronisées sur beta.8.
+
 ## v0.1.0-beta.7 — 3 octobre 2026
 
 - Bouton Mise a jour dans l'application et verification automatique de GitHub a chaque demarrage.
