@@ -1,5 +1,16 @@
 # Versions de DocPilot
 
+## v0.1.0-beta.7 — 3 octobre 2026
+
+- Bouton Mise a jour dans l'application et verification automatique de GitHub a chaque demarrage.
+- Installation automatique des nouvelles versions completes : SHA-256 controle, attente de la fin des analyses, fermeture gracieuse et redemarrage.
+- Protection contre un retour a une version plus ancienne ; erreur reseau consultable dans le bouton et updater.log.
+- Fichier PowerShell portable et lanceur Windows pour installation depuis le NAS, avec paquet local ou telechargement GitHub.
+- Import hors ligne d'un profil NAS prive : destinations, societes, fournisseurs et nommage, sans documents ni connexions ; recherche de Commun en cas de chemin introuvable.
+- Correctif de demarrage beta.6 conserve. Les profils et index prives ne sont pas distribues dans la release publique.
+
+
+
 ## v0.1.0-beta.6 — 2 octobre 2026
 
 - Correction du blocage au démarrage lorsque la connexion de contrôle à `127.0.0.1:8765` ne répond pas : délai maximal de deux secondes avant le démarrage du serveur.
