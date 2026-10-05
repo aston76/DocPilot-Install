@@ -1,5 +1,27 @@
 # Versions de DocPilot
 
+## v0.1.0-beta.10 — 5 octobre 2026
+
+Cette version regroupe les corrections des 4 et 5 octobre 2026.
+
+- Chargement : message immédiat, animation et durée écoulée ; suppression du pourcentage trompeur bloqué à 0 %.
+- Copies exactes : contrôle SHA-256 sur les fichiers actuellement accessibles avant OCR et IA. Une copie confirmée évite ces analyses et reste bloquée au classement ; la réanalyse manuelle reste disponible.
+- Doublons renommés : les chemins historiques sont revérifiés, les noms actuels affichés et les fichiers disparus écartés. Les limites de la vérification restent visibles.
+- Doublons métier entre documents : société, date de facture, numéro et montant doivent correspondre, avec la même devise. Ce contrôle reste distinct de celui des copies exactes SHA-256.
+- Lecture des factures avec annexes : jusqu’à 24 pages montrées intégralement à l’analyse ; les documents partiellement lus restent à vérifier.
+- Monnaies : codes ISO en majuscules (CHF, EUR, USD…), deux décimales et séparateur de milliers suisse, par exemple CHF 1'000.00.
+- Corrections des réponses API de mise à jour et de classement, du choix de devise et des types de document à confirmer.
+
+Installation Windows : extraire le ZIP complet puis exécuter Installer-DocPilot.cmd. Depuis beta.7, utiliser aussi le bouton Mise à jour ou relancer DocPilot ; la mise à jour attend la fin des analyses et conserve les données locales.
+
+Le paquet public ne contient aucune facture, base utilisateur, connexion enregistrée, catalogue d’entreprise ou profil privé du NAS. Les fichiers indisponibles ou non synchronisés empêchent de garantir une vérification exhaustive du serveur.
+
+Vérifications locales : chargement du moteur empaqueté, classement en simulation sur base isolée, doublon précoce avec/sans correspondance et vérification incomplète, réanalyse, indicateur de chargement, version interne, intégrité ZIP et exclusions privées. Le contrôle d’installation Windows GitHub Actions complète ces vérifications.
+
+SHA-256 de DocPilot-Windows-portable.zip :
+`b5bf587a5a4442269f1256e5538f63443123dd0244ced07e1faefe8038821c81`
+
+
 ## v0.1.0-beta.8 — 3 octobre 2026
 
 - Chemin proposé et modifiable directement dans la liste, sans ouvrir la fiche complète.

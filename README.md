@@ -10,7 +10,7 @@ $p="$env:TEMP\install-docpilot.ps1"; Invoke-WebRequest https://raw.githubusercon
 
 Le script récupère la dernière version publiée depuis GitHub, vérifie son empreinte SHA-256, l'extrait puis installe DocPilot dans `%LOCALAPPDATA%\Programs\DocPilot`. Les données seront dans `%LOCALAPPDATA%\DocPilot` et ne font pas partie du téléchargement. Aucun Python ou Node n'est requis sur le PC du client.
 
-La version `v0.1.0-beta.8` permet de choisir et confirmer le dossier directement dans la liste des documents. Pour un fournisseur absent du catalogue, un nouveau dossier peut être proposé et créé après validation explicite. Le correctif de démarrage beta.6 et les mises à jour automatiques beta.7 sont conservés.
+La version `v0.1.0-beta.10` ajoute un indicateur de chargement visible, vérifie les copies exactes avant OCR/IA, actualise les noms des doublons renommés et améliore la lecture des factures avec annexes. Le nommage utilise les codes ISO et le séparateur suisse des milliers. Les nouveautés des versions précédentes sont conservées.
 
 Les nouveautés sont décrites dans [CHANGELOG.md](CHANGELOG.md). Les paquets sont disponibles dans les [versions publiées](https://github.com/aston76/DocPilot-Install/releases).
 
