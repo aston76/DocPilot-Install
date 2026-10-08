@@ -1,0 +1,95 @@
+name: Build and publish verified beta 12
+on:
+  push:
+    branches: [main]
+    paths: ['tools/beta12/**', 'tools/build_beta12.py', '.github/workflows/publish-beta12.yml']
+  pull_request:
+    paths: ['tools/beta12/**', 'tools/build_beta12.py', '.github/workflows/publish-beta12.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify startup scan, progress and cache isolation
+        run: python tools/beta12/test_startup_sha.py
+      - name: Verify scan progress display
+        run: node tools/beta12/test_scan_ui.cjs
+      - name: Build from checksum-verified public beta 11
+        run: python tools/build_beta12.py
+      - name: Verify candidate starts and blocks work without an archive
+        shell: pwsh
+        run: |
+          Expand-Archive release-package/DocPilot-Windows-portable.zip release-package/candidate
+          $process = Start-Process (Resolve-Path release-package/candidate/DocPilot.exe) -WorkingDirectory (Resolve-Path release-package/candidate) -PassThru -WindowStyle Hidden
+          try {
+            $healthy = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                $health = Invoke-RestMethod http://127.0.0.1:8765/api/v1/health -TimeoutSec 2
+                if ($health.status -eq 'ok') { $healthy = $true; break }
+              } catch {}
+              Start-Sleep -Seconds 1
+            }
+            if (-not $healthy) { throw 'Candidate failed to start' }
+            $version = Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/update -TimeoutSec 5
+            if ($version.current -ne 'v0.1.0-beta.12') { throw 'Wrong executable version' }
+            $workspace = Invoke-RestMethod http://127.0.0.1:8765/api/v1/workspace -TimeoutSec 5
+            if ($workspace.ready) { throw 'Clean machine must not choose an unrelated archive' }
+            try {
+              Invoke-WebRequest http://127.0.0.1:8765/api/v1/documents/upload -Method Post -UseBasicParsing -TimeoutSec 5
+              throw 'Upload was not blocked'
+            } catch {
+              if ([int]$_.Exception.Response.StatusCode -ne 423) { throw }
+            }
+            $page = (Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing).Content
+            if ($page -notmatch 'startup-sha-beta12') { throw 'Outdated frontend' }
+            $nas = Join-Path $env:RUNNER_TEMP 'DocPilot-SHA\Example\Fournisseurs-Créanciers'
+            New-Item -ItemType Directory -Path (Join-Path $nas 'Factures') -Force | Out-Null
+            New-Item -ItemType Directory -Path (Join-Path $nas 'Contrats') -Force | Out-Null
+            $file = Join-Path $nas 'Factures\test.pdf'
+            [IO.File]::WriteAllBytes($file, [Text.Encoding]::ASCII.GetBytes('%PDF-SHA-test'))
+            $expected = (Get-FileHash $file -Algorithm SHA256).Hash
+            $body = @{root=$nas} | ConvertTo-Json -Compress
+            $chosen = Invoke-RestMethod http://127.0.0.1:8765/api/v1/workspace/select -Method Post -ContentType 'application/json; charset=utf-8' -Body $body -TimeoutSec 40
+            if (-not $chosen.ready) { throw 'Test archive not selected' }
+            for ($i = 0; $i -lt 30; $i++) {
+              $sha = Invoke-RestMethod http://127.0.0.1:8765/api/v1/archive/sha256 -TimeoutSec 5
+              if ($sha.phase -eq 'complete') { break }
+              Start-Sleep -Seconds 1
+            }
+            if ($sha.phase -ne 'complete' -or $sha.indexed_files -ne 1 -or $sha.percent -ne 100) { throw 'Automatic SHA scan failed after workspace verification' }
+            if ((Get-FileHash $file -Algorithm SHA256).Hash -ne $expected) { throw 'SHA scan changed an archive file' }
+            Stop-Process -Id $process.Id -Force
+            $process = Start-Process (Resolve-Path release-package/candidate/DocPilot.exe) -WorkingDirectory (Resolve-Path release-package/candidate) -PassThru -WindowStyle Hidden
+            $completed = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                $sha = Invoke-RestMethod http://127.0.0.1:8765/api/v1/archive/sha256 -TimeoutSec 2
+                if ($sha.phase -eq 'complete' -and $sha.indexed_files -eq 1) { $completed = $true; break }
+              } catch {}
+              Start-Sleep -Seconds 1
+            }
+            if (-not $completed) { throw 'SHA scan did not restart automatically on reopening' }
+          } finally { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+      - name: Publish complete release atomically
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create v0.1.0-beta.12 release-package/DocPilot-Windows-portable.zip release-package/DocPilot-Windows-portable.zip.sha256 --draft --prerelease --title "DocPilot beta.12 - automatic startup SHA-256 scan" --notes-file tools/beta12/RELEASE_NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Draft upload failed' }
+          gh release view v0.1.0-beta.12 --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw 'Asset verification failed' }
+          gh release edit v0.1.0-beta.12 --draft=false --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Publication failed' }
