@@ -133,8 +133,13 @@ try {
     }
     Update-Progress 'installing' 'Installation de la mise à jour. Veuillez patienter…'
     $installer=Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $files 'Install-DocPilot.ps1')+'"')) -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $data 'installer-output.log') -RedirectStandardError (Join-Path $data 'installer-error.log')
+    $null=$installer.Handle
     while(-not $installer.HasExited){if($form){[Windows.Forms.Application]::DoEvents()};Start-Sleep -Milliseconds 100}
-    if($installer.ExitCode -ne 0){throw 'Installation interrompue. Vos données sont conservées.'}
+    $installer.WaitForExit()
+    if($installer.ExitCode -ne 0){
+        $detail=Get-Content -LiteralPath (Join-Path $data 'installer-error.log') -Raw -ErrorAction SilentlyContinue
+        throw ('Installation interrompue (code '+$installer.ExitCode+'). Vos données sont conservées. '+$detail)
+    }
     # Only successful installation advances the version marker.
     @{version=$release.tag_name;package_sha256=$expected} | ConvertTo-Json | Set-Content -LiteralPath $marker -Encoding UTF8
     Update-Progress 'complete' 'Mise à jour terminée. DocPilot sera relancé après un clic sur OK.' 100
