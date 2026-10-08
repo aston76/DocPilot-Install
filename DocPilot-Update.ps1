@@ -30,7 +30,7 @@ if ($ShowProgress) {
     $button.Add_Click({$form.Close()});$form.Controls.AddRange(@($label,$bar,$button));$form.Show()
 }
 function Update-Progress([string]$phase,[string]$message,[Nullable[int]]$percent=$null) {
-    $payload=@{status=$phase;message=$message;percent=$percent;version=$release.tag_name;updated_at=(Get-Date).ToUniversalTime().ToString('o')}
+    $payload=@{status=$phase;message=$message;percent=$percent;version=$release.tag_name;updated_at=(Get-Date).ToUniversalTime().ToString('o');window_handle=$(if($form){$form.Handle.ToInt64()}else{$null})}
     $temporary=$statusFile+'.tmp'
     $payload | ConvertTo-Json | Set-Content -LiteralPath $temporary -Encoding UTF8
     Move-Item -LiteralPath $temporary -Destination $statusFile -Force

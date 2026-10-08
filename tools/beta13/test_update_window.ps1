@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 public class UpdateWindowProbe {
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string cls,string title);
+ [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window);
  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr window);
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window,uint msg,IntPtr w,IntPtr l);
 }
@@ -27,8 +28,8 @@ try {
   Start-Sleep -Milliseconds 250
  }
  if(-not $complete -or $state.percent -ne 100){throw 'Native window never completed'}
- $window=[UpdateWindowProbe]::FindWindow($null,'Mise à jour de DocPilot')
- if($window -eq [IntPtr]::Zero){throw 'Completion window missing'}
+ $window=[IntPtr]([long]$state.window_handle)
+ if($window -eq [IntPtr]::Zero -or -not [UpdateWindowProbe]::IsWindow($window)){throw ('Completion window missing; handle='+$state.window_handle)}
  $button=[UpdateWindowProbe]::FindWindowEx($window,[IntPtr]::Zero,$null,'OK')
  for($i=0;$i -lt 20 -and ($button -eq [IntPtr]::Zero -or -not [UpdateWindowProbe]::IsWindowEnabled($button));$i++){Start-Sleep -Milliseconds 250;$button=[UpdateWindowProbe]::FindWindowEx($window,[IntPtr]::Zero,$null,'OK')}
  if($button -eq [IntPtr]::Zero -or -not [UpdateWindowProbe]::IsWindowEnabled($button)){throw 'OK button unavailable'}

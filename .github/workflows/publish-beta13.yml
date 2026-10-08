@@ -148,7 +148,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installation-diagnostics
-          path: ~/AppData/Local/DocPilot/installer-*.log
+          path: |
+            ~/AppData/Local/DocPilot/installer-*.log
+            ~/AppData/Local/DocPilot/native-*.log
+            ~/AppData/Local/DocPilot/update-state.json
           if-no-files-found: ignore
       - name: Publish complete release atomically
         if: github.event_name != 'pull_request'
