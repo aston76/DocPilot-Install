@@ -23,6 +23,8 @@ jobs:
         run: python tools/build_beta11.py
       - name: Verify archive discovery without modifying the NAS
         run: python tools/beta11/test_workspace.py
+      - name: Verify startup banner and default selection
+        run: node tools/beta11/test_workspace_ui.cjs
       - name: Verify candidate starts and blocks work without an archive
         shell: pwsh
         run: |
