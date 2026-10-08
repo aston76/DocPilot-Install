@@ -1,0 +1,65 @@
+name: Verify automatic beta 12 to beta 13 upgrade
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upgrade:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the previously distributed beta 12
+        shell: pwsh
+        run: |
+          $folder=Join-Path $env:RUNNER_TEMP 'old-version'
+          New-Item -ItemType Directory -Path $folder | Out-Null
+          $zip=Join-Path $folder 'beta12.zip'
+          Invoke-WebRequest https://github.com/aston76/DocPilot-Install/releases/download/v0.1.0-beta.12/DocPilot-Windows-portable.zip -OutFile $zip
+          if((Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'e1275234749d2d13f1c24690d9973da87e6d0f0ccc099f51ac7922c4f704becf'){throw 'Wrong beta 12 package'}
+          Expand-Archive $zip (Join-Path $folder 'files')
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $folder 'files/Install-DocPilot.ps1')
+          if($LASTEXITCODE -ne 0){throw 'Baseline installation failed'}
+          $marker=Join-Path $env:LOCALAPPDATA 'Programs/DocPilot/version.json'
+          if((Get-Content $marker -Raw|ConvertFrom-Json).version -ne 'v0.1.0-beta.12'){throw 'Wrong baseline version'}
+          $data=Join-Path $env:LOCALAPPDATA 'DocPilot'
+          New-Item -ItemType Directory -Path $data -Force | Out-Null
+          'preserve-existing-local-data' | Set-Content (Join-Path $data 'auto-upgrade-sentinel.txt')
+      - name: Opening the old program must install the published beta 13
+        shell: pwsh
+        run: |
+          $exe=Join-Path $env:LOCALAPPDATA 'Programs/DocPilot/DocPilot.exe'
+          $old=Start-Process $exe -PassThru -WindowStyle Hidden
+          $null=$old.Handle
+          try {
+            $ready=$false
+            for($i=0;$i -lt 600;$i++){
+              try {
+                $version=Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/update -TimeoutSec 2
+                if($version.current -eq 'v0.1.0-beta.13'){$ready=$true;break}
+              }catch{}
+              Start-Sleep -Seconds 1
+            }
+            if(-not $ready){throw 'The old application did not update and restart automatically'}
+            if(-not $old.HasExited){throw 'Old executable remained running'}
+            $marker=Get-Content (Join-Path (Split-Path $exe) 'version.json') -Raw|ConvertFrom-Json
+            if($marker.version -ne 'v0.1.0-beta.13'){throw 'Version marker was not advanced'}
+            $data=Join-Path $env:LOCALAPPDATA 'DocPilot'
+            if((Get-Content (Join-Path $data 'auto-upgrade-sentinel.txt')).Trim() -ne 'preserve-existing-local-data'){throw 'User data was changed'}
+            $health=Invoke-RestMethod http://127.0.0.1:8765/api/v1/health -TimeoutSec 5
+            if($health.status -ne 'ok'){throw 'Updated server is unhealthy'}
+            $inbox=Invoke-RestMethod http://127.0.0.1:8765/api/v1/pc-inbox -TimeoutSec 5
+            if($inbox.running -or $inbox.total -ne 0){throw 'Unexpected automatic PC scan or seeded documents'}
+            $page=(Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing).Content
+            if($page -notmatch 'automatic-index-beta13'){throw 'Updated interface not served'}
+            Write-Host 'PASS: opening the actual beta 12 automatically downloaded beta 13, closed the old application, restarted, preserved data and served the new interface.'
+          } finally {
+            Get-Process DocPilot -ErrorAction SilentlyContinue | Where-Object {$_.Path -eq $exe} | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+      - name: Keep upgrade diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automatic-upgrade-diagnostics
+          path: ~/AppData/Local/DocPilot/*.log
+          if-no-files-found: ignore
