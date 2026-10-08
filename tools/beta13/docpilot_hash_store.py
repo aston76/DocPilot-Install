@@ -5,6 +5,7 @@ absence or a distributed lock. Candidate bytes remain verified by the caller.
 """
 import hashlib,json,os,sqlite3,uuid
 from pathlib import Path,PurePosixPath
+from contextlib import contextmanager
 
 SCHEMA=1
 
@@ -19,8 +20,14 @@ class Store:
             db.execute('CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY,size INTEGER,mtime INTEGER,ctime INTEGER,sha TEXT NOT NULL)')
             db.execute('CREATE INDEX IF NOT EXISTS files_sha ON files(sha)')
             db.execute('CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
+    @contextmanager
     def connect(self):
-        return sqlite3.connect(self.path,timeout=10)
+        connection=sqlite3.connect(self.path,timeout=10)
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
     def load(self,root):
         with self.connect() as db:
             files={p:[size,mtime,ctime,sha] for p,size,mtime,ctime,sha in db.execute('SELECT path,size,mtime,ctime,sha FROM files')}
