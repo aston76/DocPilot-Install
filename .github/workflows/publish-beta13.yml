@@ -37,7 +37,7 @@ jobs:
           foreach ($script in @('DocPilot-Update.ps1','Install-DocPilot.ps1')) {
             $tokens=$null;$errors=$null
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script),[ref]$tokens,[ref]$errors)
-            if($errors.Count){throw ($errors | Out-String)}
+            if($errors.Count){throw (($errors | ForEach-Object { $_.Message+' at line '+$_.Extent.StartLineNumber }) -join "`n")}
           }
           python -m pip install fastapi httpx
           python tools/beta13/test_update_api.py

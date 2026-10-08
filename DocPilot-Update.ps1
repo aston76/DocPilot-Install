@@ -104,7 +104,7 @@ try {
         Update-Progress 'downloading' 'Téléchargement de la mise à jour…'
         Download-Archive $archive.browser_download_url $zip
     }
-    Update-Progress 'verifying' 'Vérification de l’intégrité du téléchargement…'
+    Update-Progress 'verifying' 'Vérification de l''intégrité du téléchargement…'
     $expected=((Get-Content -LiteralPath $sha -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
     if ($expected -notmatch '^[a-f0-9]{64}$' -or (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'SHA-256 incorrect : installation interrompue.' }
     $files=Join-Path $temp 'files'
