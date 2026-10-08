@@ -18,7 +18,7 @@ jobs:
         shell: pwsh
         run: |
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
-          if (-not (Test-Path $exe)) { throw 'DocPilot.exe absent après installation' }
+          if (-not (Test-Path $exe)) { throw 'DocPilot.exe absent aprÃ¨s installation' }
           $process = Start-Process $exe -PassThru -WindowStyle Hidden
           try {
             $healthy = $false
@@ -29,17 +29,20 @@ jobs:
                 if ($result.status -eq 'ok') { $healthy = $true; break }
               } catch {}
             }
-            if (-not $healthy) { throw 'DocPilot ne démarre pas après installation' }
+            if (-not $healthy) { throw 'DocPilot ne dÃ©marre pas aprÃ¨s installation' }
             $documents = (Invoke-WebRequest http://127.0.0.1:8765/api/v1/documents -UseBasicParsing).Content.Trim()
             $entities = (Invoke-WebRequest http://127.0.0.1:8765/api/v1/legal-entities -UseBasicParsing).Content.Trim()
             $creditors = (Invoke-WebRequest http://127.0.0.1:8765/api/v1/creditors -UseBasicParsing).Content.Trim()
             if ($documents -ne '[]' -or $entities -ne '[]' -or $creditors -ne '[]') {
-              throw 'La nouvelle installation contient des données préchargées'
+              throw 'La nouvelle installation contient des donnÃ©es prÃ©chargÃ©es'
             }
             $index = Invoke-RestMethod http://127.0.0.1:8765/api/v1/archive/sha256
             if ($index.indexed_files -ne 0 -or $index.running) {
-              throw 'La nouvelle installation contient un index privé ou un scan inattendu'
+              throw 'La nouvelle installation contient un index privÃ© ou un scan inattendu'
             }
+            $installedVersion = (Get-Content (Join-Path (Split-Path $exe) 'version.json') -Raw | ConvertFrom-Json).version
+            $update = Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/update -TimeoutSec 5
+            if ($update.current -ne $installedVersion) { throw 'Version interne incohérente ou API de mise à jour non JSON' }
             $page = Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing
             if ($page.StatusCode -ne 200 -or $page.Content -notmatch 'DocPilot') { throw 'Interface inaccessible' }
           } finally { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
