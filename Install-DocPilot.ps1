@@ -1,4 +1,10 @@
 ﻿# Installe ou met à jour le programme uniquement. Les données restent dans LOCALAPPDATA\DocPilot.
+function File-Sha256([string]$path) {
+    $algorithm=[Security.Cryptography.SHA256]::Create()
+    $stream=[IO.File]::OpenRead($path)
+    try {return [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}
+    finally {$stream.Dispose();$algorithm.Dispose()}
+}
 $ErrorActionPreference = 'Stop'
 $source = $PSScriptRoot
 $target = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot'
@@ -36,8 +42,8 @@ try {
     Get-ChildItem -LiteralPath $source -Force | Where-Object {$_.Name -ne 'Install-DocPilot.ps1'} | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force
     }
-    $sourceHash=(Get-FileHash -LiteralPath (Join-Path $source 'DocPilot.exe') -Algorithm SHA256).Hash
-    if((Get-FileHash -LiteralPath (Join-Path $stage 'DocPilot.exe') -Algorithm SHA256).Hash -ne $sourceHash){throw 'Vérification du programme échouée.'}
+    $sourceHash=(File-Sha256 (Join-Path $source 'DocPilot.exe'))
+    if((File-Sha256 (Join-Path $stage 'DocPilot.exe')) -ne $sourceHash){throw 'Vérification du programme échouée.'}
     if(-not (Test-Path -LiteralPath (Join-Path $stage 'web\index.html'))){throw 'Interface absente du paquet.'}
     if(Test-Path -LiteralPath $target){Move-Item -LiteralPath $target -Destination $backup}
     try {Move-Item -LiteralPath $stage -Destination $target;$swapped=$true} catch {

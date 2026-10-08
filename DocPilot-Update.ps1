@@ -1,4 +1,10 @@
 ﻿param([ValidateSet('Install','Update')][string]$Mode='Install',[switch]$Restart,[string]$PortableArchive,[switch]$ShowProgress)
+function File-Sha256([string]$path) {
+    $algorithm=[Security.Cryptography.SHA256]::Create()
+    $stream=[IO.File]::OpenRead($path)
+    try {return [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}
+    finally {$stream.Dispose();$algorithm.Dispose()}
+}
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
@@ -106,7 +112,7 @@ try {
     }
     Update-Progress 'verifying' 'Vérification de l''intégrité du téléchargement…'
     $expected=((Get-Content -LiteralPath $sha -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
-    if ($expected -notmatch '^[a-f0-9]{64}$' -or (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'SHA-256 incorrect : installation interrompue.' }
+    if ($expected -notmatch '^[a-f0-9]{64}$' -or (File-Sha256 $zip) -ne $expected) { throw 'SHA-256 incorrect : installation interrompue.' }
     $files=Join-Path $temp 'files'
     Update-Progress 'extracting' 'Préparation des fichiers…'
     Extract-Archive $zip $files

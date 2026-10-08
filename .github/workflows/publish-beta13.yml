@@ -27,8 +27,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Scan tests failed' }
           python tools/beta13/test_fast_lookup.py
           if ($LASTEXITCODE -ne 0) { throw 'Lookup tests failed' }
+          python tools/beta13/test_catalogue_sync.py
+          if ($LASTEXITCODE -ne 0) { throw 'Catalogue synchronization tests failed' }
       - name: Verify scan progress display
-        run: node tools/beta13/test_update_ui.cjs
+        run: |
+          node tools/beta13/test_update_ui.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Updater display tests failed' }
+          node tools/beta13/test_pc_inbox_ui.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'PC inbox display tests failed' }
       - name: Build from checksum-verified public beta 12
         run: python tools/build_beta13.py
       - name: Parse installer scripts and verify update UI protocol
@@ -39,7 +45,10 @@ jobs:
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script),[ref]$tokens,[ref]$errors)
             if($errors.Count){throw (($errors | ForEach-Object { $_.Message+' at line '+$_.Extent.StartLineNumber }) -join "`n")}
           }
-          python -m pip install fastapi httpx
+          python -m pip install fastapi httpx pymupdf
+          if($LASTEXITCODE -ne 0){throw 'Test dependencies unavailable'}
+          python tools/beta13/test_pc_inbox.py
+          if($LASTEXITCODE -ne 0){throw 'PC inbox tests failed'}
           python tools/beta13/test_update_api.py
           if($LASTEXITCODE -ne 0){throw 'Update protocol tests failed'}
       - name: Verify candidate starts and blocks work without an archive
@@ -59,6 +68,8 @@ jobs:
             if (-not $healthy) { throw 'Candidate failed to start' }
             $version = Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/update -TimeoutSec 5
             if ($version.current -ne 'v0.1.0-beta.13') { throw 'Wrong executable version' }
+            $inbox=Invoke-RestMethod http://127.0.0.1:8765/api/v1/pc-inbox -TimeoutSec 5
+            if($inbox.running -or $inbox.total -ne 0){throw 'Discovery must be idle and empty on a new installation'}
             $workspace = Invoke-RestMethod http://127.0.0.1:8765/api/v1/workspace -TimeoutSec 5
             if ($workspace.ready) { throw 'Clean machine must not choose an unrelated archive' }
             try {
@@ -94,7 +105,7 @@ jobs:
               Start-Sleep -Seconds 1
             }
             if(-not $found){throw 'Native change notification did not index the new file'}
-            if(-not (Test-Path (Join-Path $nas '.docpilot-index\v1'))){throw 'Shared index not published'}
+            if(-not (Test-Path (Join-Path $nas 'DocPilot-Partage\v1'))){throw 'Shared index not published'}
             Stop-Process -Id $process.Id -Force
             $process = Start-Process (Resolve-Path release-package/candidate/DocPilot.exe) -WorkingDirectory (Resolve-Path release-package/candidate) -PassThru -WindowStyle Hidden
             $completed = $false

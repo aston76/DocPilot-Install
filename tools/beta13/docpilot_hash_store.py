@@ -63,7 +63,8 @@ def device_id(local):
         return value
 
 def shared_hints(root):
-    hints={};errors=[];folder=Path(root)/'.docpilot-index'/'v1'
+    hints={};errors=[];folder=Path(root)/'DocPilot-Partage'/'v1'
+    if not folder.resolve().is_relative_to(Path(root).resolve()):raise OSError('Index partagé hors archive')
     if not folder.is_dir():return hints,errors
     for path in list(folder.glob('*.json'))[:128]:
         try:
@@ -78,15 +79,51 @@ def shared_hints(root):
         except (OSError,ValueError,AttributeError):errors.append(path.name)
     return hints,errors
 
-def publish(root,data,local):
-    folder=Path(root)/'.docpilot-index'/'v1'
+def publish(root,data,local,catalogue=None):
+    folder=Path(root)/'DocPilot-Partage'/'v1'
     if not folder.resolve().is_relative_to(Path(root).resolve()):raise OSError('Index partagé hors archive')
     folder.mkdir(parents=True,exist_ok=True)
     if folder.is_symlink() or not folder.resolve().is_relative_to(Path(root).resolve()):raise OSError('Index partagé hors archive')
     path=folder/(device_id(local)+'.json')
-    payload=json.dumps({'schema':SCHEMA,'files':data['files']},ensure_ascii=False,separators=(',',':'))
+    payload_data={'schema':SCHEMA,'files':data['files']}
+    if catalogue and catalogue.get('company') and Path(catalogue.get('root',root)).resolve()==Path(root).resolve():
+        payload_data['catalogue']={'company':catalogue['company'],'entries':[entry for item in catalogue.get('entries',[]) if (entry:=clean_entry(item))]}
+    payload=json.dumps(payload_data,ensure_ascii=False,separators=(',',':'))
     if path.exists() and path.read_text(encoding='utf-8')==payload:return
     temporary=folder/(path.stem+'.'+uuid.uuid4().hex+'.tmp')
     try:
         temporary.write_text(payload,encoding='utf-8');os.replace(temporary,path)
     finally:temporary.unlink(missing_ok=True)
+
+
+def clean_entry(item):
+    if not isinstance(item,dict):return None
+    path=item.get('path')
+    if not valid_relative(path) or len(path.split('/'))!=2:return None
+    category,supplier=path.split('/')
+    if category not in ('Factures','Contrats','Douanes','Tarifs','Tarifs-Liste de prix fournisseurs'):return None
+    if item.get('category')!=category or item.get('supplier')!=supplier:return None
+    label=item.get('filename_label',supplier)
+    if not isinstance(label,str) or not label.strip() or len(label)>256:return None
+    aliases=item.get('aliases',[])
+    if not isinstance(aliases,list):return None
+    aliases=[v for v in aliases[:50] if isinstance(v,str) and 0<len(v)<=256]
+    layout=item.get('layout','direct')
+    if layout not in ('direct','year'):return None
+    return {'path':path,'category':category,'supplier':supplier,'filename_label':label,'aliases':aliases,'layout':layout}
+
+def shared_catalogue(root,company):
+    entries=[];errors=[];folder=Path(root)/'DocPilot-Partage'/'v1'
+    if not folder.is_dir():return entries,errors
+    if not folder.resolve().is_relative_to(Path(root).resolve()):raise OSError('Index partagé hors archive')
+    for path in sorted(folder.glob('*.json'))[:128]:
+        try:
+            if path.is_symlink() or path.stat().st_size>32*1024*1024:continue
+            data=json.loads(path.read_text(encoding='utf-8'))
+            catalogue=data.get('catalogue') or {}
+            if data.get('schema')!=SCHEMA or catalogue.get('company')!=company:continue
+            values=catalogue.get('entries',[])
+            if not isinstance(values,list):continue
+            entries.extend(entry for item in values[:10000] if (entry:=clean_entry(item)))
+        except (OSError,ValueError,AttributeError):errors.append(path.name)
+    return entries,errors

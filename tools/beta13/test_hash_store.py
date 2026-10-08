@@ -16,9 +16,9 @@ with tempfile.TemporaryDirectory() as temporary:
     assert hints['Factures/12000.pdf'][0][3]==digest and not errors
     # Independent PCs never edit the same shared snapshot.
     publish(root,{'files':{'Factures/second.pdf':[5,1,1,digest]}},base/'pc2')
-    assert len(list((root/'.docpilot-index/v1').glob('*.json')))==2
+    assert len(list((root/'DocPilot-Partage/v1').glob('*.json')))==2
     assert not list(root.rglob('*.sqlite3')),'SQLite must never live on the NAS'
-    bad=root/'.docpilot-index/v1/bad.json';bad.write_text(json.dumps({'schema':1,'files':{'../../escape':[1,2,3,digest]}}))
+    bad=root/'DocPilot-Partage/v1/bad.json';bad.write_text(json.dumps({'schema':1,'files':{'../../escape':[1,2,3,digest]}}))
     assert '../../escape' not in shared_hints(root)[0]
     assert not valid_relative('a/../b') and not valid_relative('C:/file')
     db.put('Factures/new.pdf',[1,2,3,digest]);assert len(db.find(digest))==2

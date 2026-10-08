@@ -209,12 +209,178 @@ function SimpleWorkspace({page,docs,filter,onFilter,search,onSearch,upload,proce
   !filtered.length&&o.jsx("p",{className:"pilot-simple-empty",children:review?"Les nouveaux documents apparaîtront ici après leur analyse.":"Aucun document ne correspond à cette recherche."})
  ]});
 }
+const labels = { duplicate: "Copie identique sur le NAS", processed: "D\xE9j\xE0 trait\xE9e dans DocPilot", imported: "D\xE9j\xE0 ajout\xE9e \xE0 DocPilot", to_process: "\xC0 traiter" };
+export function PcInboxPanel({ onImportFile, onOpen, onChanged }) {
+  const [state, setState] = N.useState(null);
+  const [error, setError] = N.useState("");
+  const [busy, setBusy] = N.useState(null);
+  const [remove, setRemove] = N.useState(null);
+  const [offset, setOffset] = N.useState(0);
+  const [filter, setFilter] = N.useState("all");
+  const refresh = async () => {
+    const response = await fetch(`/api/v1/pc-inbox?offset=${offset}&filter=${filter}`, { cache: "no-store" });
+    if (!response.ok) throw new Error("La recherche locale est indisponible.");
+    setState(await response.json());
+  };
+  N.useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/v1/pc-inbox?offset=${offset}&filter=${filter}`, { cache: "no-store" });
+        if (!response.ok) throw new Error("Le serveur ne r\xE9pond pas.");
+        const next = await response.json();
+        if (active) setState(next);
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : String(e));
+      }
+    };
+    poll();
+    const timer = window.setInterval(poll, 3e3);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [offset, filter]);
+  const command = async (action) => {
+    setError("");
+    try {
+      const response = await fetch("/api/v1/pc-inbox", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const next = await response.json();
+      if (!response.ok) throw new Error(next.detail || "Recherche impossible");
+      setState(next);
+      setOffset(0);
+      setFilter("all");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const importFile = async (item) => {
+    setBusy(item.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/v1/pc-inbox/${item.id}/file`);
+      if (!response.ok) {
+        const detail = await response.json();
+        throw new Error(detail.detail || "Le fichier n\u2019est plus accessible.");
+      }
+      const blob = await response.blob();
+      const filename = item.path.split(/[\\/]/).pop() || "document.pdf";
+      const document2 = await onImportFile(new File([blob], filename, { type: blob.type }));
+      await fetch(`/api/v1/pc-inbox/${item.id}/refresh`, { method: "POST" });
+      await refresh();
+      onChanged();
+      onOpen(document2.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const confirmRemove = async () => {
+    if (!remove) return;
+    setBusy(remove.item.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/v1/pc-inbox/${remove.item.id}/remove`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(remove.deleteFile ? { delete_file: true, confirm: true } : { delete_file: false }) });
+      const next = await response.json();
+      if (!response.ok) throw new Error(next.detail || "Suppression impossible");
+      setRemove(null);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return /* @__PURE__ */ o.jsxs("section", { className: "pilot-pc-inbox", children: [
+    /* @__PURE__ */ o.jsxs("div", { className: "pilot-page-title", children: [
+      /* @__PURE__ */ o.jsxs("div", { children: [
+        /* @__PURE__ */ o.jsx("span", { className: "pilot-kicker", children: "RECHERCHE LOCALE" }),
+        /* @__PURE__ */ o.jsx("h1", { children: "Factures \xE0 traiter sur ce PC" }),
+        /* @__PURE__ */ o.jsx("p", { children: "Retrouvez les factures oubli\xE9es sur cet ordinateur." })
+      ] }),
+      /* @__PURE__ */ o.jsx("button", { className: "pilot-primary", disabled: state?.running || !!busy, onClick: () => command("scan"), children: state?.running ? "Recherche en cours\u2026" : "D\xE9tecter les factures sur ce PC" })
+    ] }),
+    /* @__PURE__ */ o.jsx("p", { children: "Les dossiers Synology, les lecteurs r\xE9seau, les archives configur\xE9es et les dossiers syst\xE8me sont exclus. Aucun fichier n\u2019est d\xE9plac\xE9 ou supprim\xE9 pendant la recherche." }),
+    error && /* @__PURE__ */ o.jsxs("div", { className: "pilot-alert error", role: "alert", children: [
+      error,
+      /* @__PURE__ */ o.jsx("button", { onClick: () => setError(""), "aria-label": "Fermer", children: "\xD7" })
+    ] }),
+    /* @__PURE__ */ o.jsxs("div", { className: "pilot-pc-status", role: "status", "aria-live": "polite", children: [
+      /* @__PURE__ */ o.jsx("strong", { children: state?.message || "Chargement\u2026" }),
+      state?.running && /* @__PURE__ */ o.jsxs(Fragment, { children: [
+        /* @__PURE__ */ o.jsx("progress", { "aria-label": "Recherche des factures" }),
+        /* @__PURE__ */ o.jsxs("span", { children: [
+          state.visited,
+          " fichiers parcourus \xB7 ",
+          state.found,
+          " candidats"
+        ] }),
+        /* @__PURE__ */ o.jsx("button", { className: "pilot-secondary", onClick: () => command("cancel"), children: "Arr\xEAter la recherche" })
+      ] }),
+      !!state?.errors && /* @__PURE__ */ o.jsxs("span", { children: [
+        state.errors,
+        " acc\xE8s ou fichier(s) non v\xE9rifi\xE9s : r\xE9sultat partiel."
+      ] })
+    ] }),
+    /* @__PURE__ */ o.jsx("div", { className: "pilot-filters", children: [["all", "Tous"], ["to_process", "\xC0 traiter"], ["duplicates", "D\xE9j\xE0 trait\xE9s / doublons"]].map(([value, label]) => /* @__PURE__ */ o.jsx("button", { className: filter === value ? "active" : "", onClick: () => {
+      setFilter(value);
+      setOffset(0);
+    }, children: label }, value)) }),
+    /* @__PURE__ */ o.jsx("div", { className: "pilot-pc-list", children: state?.items.map((item) => /* @__PURE__ */ o.jsxs("article", { className: "pilot-pc-row", children: [
+      /* @__PURE__ */ o.jsxs("div", { className: "pilot-pc-description", children: [
+        /* @__PURE__ */ o.jsx("strong", { children: item.path.split(/[\\/]/).pop() }),
+        /* @__PURE__ */ o.jsx("span", { children: item.path }),
+        /* @__PURE__ */ o.jsxs("span", { className: "pilot-pc-label " + (item.status === "duplicate" ? "duplicate" : ""), children: [
+          labels[item.status] || item.status,
+          item.status === "to_process" && item.kind === "possible" ? " \xB7 Nature \xE0 confirmer" : ""
+        ] }),
+        item.matches.length > 0 && /* @__PURE__ */ o.jsxs("small", { children: [
+          "Correspondance NAS : ",
+          item.matches.join(" \xB7 ")
+        ] }),
+        item.status === "to_process" && !item.verified && /* @__PURE__ */ o.jsx("small", { children: "V\xE9rification du NAS incompl\xE8te : l\u2019absence de doublon n\u2019est pas confirm\xE9e." })
+      ] }),
+      /* @__PURE__ */ o.jsxs("div", { className: "pilot-pc-actions", children: [
+        item.status === "to_process" && /* @__PURE__ */ o.jsx("button", { className: "pilot-primary", disabled: !!busy, onClick: () => importFile(item), children: busy === item.id ? "Import en cours\u2026" : "Importer et traiter" }),
+        item.doc_id !== null && /* @__PURE__ */ o.jsx("button", { className: "pilot-secondary", onClick: () => onOpen(item.doc_id), children: "Ouvrir dans DocPilot" }),
+        /* @__PURE__ */ o.jsx("button", { className: "pilot-secondary", disabled: !!busy, onClick: () => setRemove({ item, deleteFile: false }), children: "Retirer de la liste" }),
+        /* @__PURE__ */ o.jsx("button", { className: "pilot-danger", disabled: !!busy, onClick: () => setRemove({ item, deleteFile: true }), children: "Supprimer aussi du PC" })
+      ] })
+    ] }, item.id)) }),
+    state && !state.items.length && /* @__PURE__ */ o.jsx("p", { className: "pilot-simple-empty", children: state.running ? "La recherche continue\u2026" : "Aucun document dans cette liste. Lancez la d\xE9tection pour commencer." }),
+    !!state?.total && /* @__PURE__ */ o.jsxs("div", { className: "pilot-pc-pagination", children: [
+      /* @__PURE__ */ o.jsxs("span", { children: [
+        offset + 1,
+        "\u2013",
+        Math.min(offset + state.items.length, state.total),
+        " sur ",
+        state.total
+      ] }),
+      /* @__PURE__ */ o.jsx("button", { className: "pilot-secondary", disabled: !offset, onClick: () => setOffset(Math.max(0, offset - 100)), children: "Pr\xE9c\xE9dent" }),
+      /* @__PURE__ */ o.jsx("button", { className: "pilot-secondary", disabled: offset + 100 >= state.total, onClick: () => setOffset(offset + 100), children: "Suivant" })
+    ] }),
+    /* @__PURE__ */ o.jsx("p", { children: /* @__PURE__ */ o.jsx("small", { children: "Les PDF avec texte sont reconnus par leur contenu ou leur nom. Les photos, scans et documents Office incertains restent \xE0 confirmer. Les fichiers uniquement en ligne et ceux d\xE9passant 100 Mo ne sont pas lus." }) }),
+    remove && Ie.createPortal(/* @__PURE__ */ o.jsx("div", { className: "pilot-modal-backdrop pilot-update-backdrop", children: /* @__PURE__ */ o.jsxs("div", { className: "pilot-modal pilot-update-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "pc-remove-title", children: [
+      /* @__PURE__ */ o.jsx("h2", { id: "pc-remove-title", children: remove.deleteFile ? "Supprimer le fichier de ce PC ?" : "Retirer uniquement de la liste ?" }),
+      /* @__PURE__ */ o.jsx("p", { className: "pilot-modal-filename", children: remove.item.path }),
+      /* @__PURE__ */ o.jsx("p", { children: remove.deleteFile ? "Le fichier original sera d\xE9finitivement supprim\xE9 de cet ordinateur. La copie du NAS ne sera pas modifi\xE9e." : "Le fichier restera sur cet ordinateur. Cette entr\xE9e sera masqu\xE9e dans la liste." }),
+      error && /* @__PURE__ */ o.jsx("p", { role: "alert", children: error }),
+      /* @__PURE__ */ o.jsxs("div", { className: "pilot-modal-actions", children: [
+        /* @__PURE__ */ o.jsx("button", { className: "pilot-secondary", disabled: !!busy, onClick: () => setRemove(null), children: "Annuler" }),
+        /* @__PURE__ */ o.jsx("button", { className: remove.deleteFile ? "pilot-danger" : "pilot-primary", disabled: !!busy, onClick: confirmRemove, children: busy ? "Traitement\u2026" : remove.deleteFile ? "Confirmer la suppression du PC" : "Retirer de la liste" })
+      ] })
+    ] }) }), document.body)
+  ] });
+}
+
 function Dp(){const[e,t]=N.useState("home"),[n,r]=N.useState("all"),[l,i]=N.useState([]),[s,a]=N.useState(null),[u,d]=N.useState(null),[h,v]=N.useState(null),[p,g]=N.useState(!1),[w,x]=N.useState(!1),[T,f]=N.useState(!1),[c,m]=N.useState(0),[j,S]=N.useState(!1),[_,P]=N.useState(null),[L,O]=N.useState(null),[I,ee]=N.useState(""),[Z,me]=N.useState("storage"),te=N.useCallback(async()=>{try{i(await F.documents()),O(null)}catch(C){O(C instanceof Error?C.message:String(C))}},[]);N.useEffect(()=>{te(),F.settings().then(a).catch(()=>{});const C=window.setInterval(te,3000);return()=>window.clearInterval(C)},[te]);const we=l.filter(ci),Fe=l.filter(C=>C.status==="FILED"||C.status==="VALIDATED"),Pe=l.filter(C=>C.status==="DUPLICATE"),y=async C=>{if(!(C!=null&&C.length)||T)return;f(!0),O(null),P(null),m(0);const ne=[],K=[];for(const[Be,It]of Array.from(C).entries()){try{ne.push(await F.upload(It))}catch(Zt){K.push(It.name+" : "+(Zt instanceof Error?Zt.message:String(Zt)))}m(Math.round((Be+1)/C.length*100))}await te(),f(!1);const Rt=ne.filter(Be=>Be.status==="FILED"||Be.status==="VALIDATED").length,Te=ne.filter(ci).length;P(Rt+" classée(s) automatiquement · "+Te+" à vérifier"+(K.length?" · "+K.length+" échec(s)":"")),K.length&&O(K.join(" · ")),ne.length&&(r("attention"),t("home"),d(null),ee(""))},D=(C="all")=>{r(C),t("documents"),d(null)},R=async()=>{if(h){x(!0),O(null);try{await F.deleteDocument(h.id,false),d(null),v(null),g(!1),await te(),P("Document retiré de DocPilot. Fichier sur le serveur conservé.")}catch(C){O(C instanceof Error?C.message:String(C))}finally{x(!1)}}},A=l.filter(C=>n==="attention"&&!ci(C)||n==="filed"&&!["FILED","VALIDATED"].includes(C.status)||n==="duplicates"&&C.status!=="DUPLICATE"?!1:[C.original_filename,C.proposed_filename,C.creditor_name,C.legal_entity_name].join(" ").toLowerCase().includes(I.toLowerCase()));return o.jsxs("div",{className:"pilot-app pilot-simplified",children:[
  o.jsxs("header",{className:"pilot-header",children:[
   o.jsxs("button",{className:"pilot-brand",onClick:()=>{t("home"),d(null)},"aria-label":"Accueil DocPilot",children:[o.jsx("span",{className:"pilot-logo",children:o.jsx(ge,{name:"sparkle",size:23})}),"docpilot"]}),
   o.jsxs("nav",{className:"pilot-nav","aria-label":"Navigation principale",children:[
    o.jsxs("button",{className:e==="home"?"current":"",onClick:()=>{t("home"),d(null),ee("")},children:["Classer",we.length>0&&o.jsx("span",{className:"pilot-count",children:we.length})]}),
    o.jsx("button",{className:e==="documents"?"current":"",onClick:()=>{D(),ee("")},children:"Documents"}),
+   o.jsx("button",{className:e==="pc"?"current":"",onClick:()=>{t("pc"),d(null)},children:"Sur ce PC"}),
    o.jsx("button",{className:e==="settings"?"current":"",onClick:()=>{t("settings"),d(null)},children:"Réglages"})]}),
   o.jsx("span",{className:"pilot-health",children:s?.storage_dry_run?"Simulation":"Classement actif"}),
   o.jsx(AppUpdateButton,{}),o.jsx("button",{className:"pilot-quit",onClick:quitDocPilot,children:"Quitter"})]}),
@@ -222,6 +388,7 @@ function Dp(){const[e,t]=N.useState("home"),[n,r]=N.useState("all"),[l,i]=N.useS
   L&&o.jsxs("div",{className:"pilot-alert error",role:"alert",children:[L,o.jsx("button",{onClick:()=>O(null),"aria-label":"Fermer",children:"×"})]}),
   _&&o.jsxs("div",{className:"pilot-alert success",role:"status",children:[_,o.jsx("button",{onClick:()=>P(null),"aria-label":"Fermer",children:"×"})]}),
   (e==="home"||e==="documents")&&(u!==null?o.jsx(kp,{id:u,onBack:()=>{d(null),te()},onChanged:te,onDelete:v}):o.jsx(SimpleWorkspace,{page:e,docs:l,filter:n,onFilter:r,search:I,onSearch:ee,upload:y,processing:T,progress:c,dragging:j,onDrag:S,onOpen:C=>{d(C),t("documents")},onRemove:v,onChanged:te,simulation:s?.storage_dry_run})),
+  e==="pc"&&o.jsx(PcInboxPanel,{onImportFile:file=>F.upload(file),onChanged:te,onOpen:id=>{d(id),t("documents")}}),
   e==="settings"&&o.jsxs("section",{className:"pilot-settings",children:[
    o.jsx("div",{className:"pilot-page-title",children:o.jsx("h1",{children:"Réglages"})}),
    o.jsx("div",{className:"pilot-settings-nav",children:[["storage","Dossiers"],["ia","IA"],["system","Général"],["entities","Fournisseurs"],["creditors","Sociétés"],["history","Historique"]].map(([value,label])=>o.jsx("button",{className:Z===value?"active":"",onClick:()=>me(value),children:label},value))}),

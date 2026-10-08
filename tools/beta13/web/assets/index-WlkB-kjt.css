@@ -30,3 +30,24 @@
 .pilot-diagnostic{margin:12px 0;padding:14px;border:1px solid #e2c084;border-radius:10px;background:#fff8ea;color:#543e19}.pilot-diagnostic p{margin:6px 0}.pilot-diagnostic small,.pilot-date-choice small{display:block;line-height:1.5}.pilot-date-choice{padding:10px 0;border-top:1px solid #dfd7c8}.pilot-date-choice button{margin-top:6px}.pilot-sync-dashboard{padding:14px;margin:16px 0;border:1px solid #b9d4c9;border-radius:12px;background:#f2f8f5}.pilot-sync-dashboard summary{cursor:pointer;font-weight:600}.pilot-sync-file{display:grid;gap:5px;padding:12px 0;border-top:1px solid #d1e2d9}.pilot-sync-file progress{width:100%;accent-color:#20664c}.pilot-sync-file small{line-height:1.5}
 
 .pilot-workspace-gate{padding:14px;margin:0 0 16px;border:1px solid #b9d4c9;border-radius:12px;background:#f2f8f5}.pilot-workspace-gate.blocked{background:#fff3e8;border-color:#d8915c}.pilot-workspace-gate p,.pilot-workspace-gate small{display:block;overflow-wrap:anywhere;margin:6px 0}.pilot-workspace-gate button{margin:6px}.pilot-workspace-gate input{width:100%;padding:10px;margin:8px 0}.pilot-workspace-gate summary{cursor:pointer}
+
+/* Local invoice inbox: paths and actions remain readable on small screens. */
+.pilot-pc-inbox { min-width:0; }
+.pilot-pc-inbox p { font-size:16px; line-height:1.6; }
+.pilot-pc-status { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:18px; background:#eef7f3; border:1px solid #d3e7df; border-radius:16px; margin:20px 0; }
+.pilot-pc-list { display:grid; gap:14px; margin-top:20px; }
+.pilot-pc-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:20px; padding:20px; background:#fff; border:1px solid #dce8e3; border-radius:18px; }
+.pilot-pc-description { min-width:0; display:flex; flex-direction:column; gap:8px; }
+.pilot-pc-description strong { font-size:18px; overflow-wrap:anywhere; }
+.pilot-pc-description span,.pilot-pc-description small { font-size:15px; overflow-wrap:anywhere; line-height:1.5; }
+.pilot-pc-label { color:#12684d; font-weight:650; }
+.pilot-pc-label.duplicate { color:#b43c35; }
+.pilot-pc-actions { display:flex; flex-wrap:wrap; gap:10px; align-content:center; max-width:380px; }
+.pilot-pc-actions button { font-size:15px; }
+.pilot-pc-pagination { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:flex-end; padding-top:20px; }
+.pilot-update-modal { box-sizing:border-box; width:min(500px,100%); max-height:calc(100dvh - 32px); overflow-y:auto; overflow-wrap:anywhere; }
+.pilot-update-backdrop { padding:16px; z-index:1000; }
+.pilot-update-modal .pilot-modal-actions { flex-wrap:wrap; }
+.pilot-header { gap:clamp(12px,2vw,28px); height:auto; min-height:82px; padding-top:12px; padding-bottom:12px; flex-wrap:wrap; }
+.pilot-nav { flex-wrap:wrap; }
+@media(max-width:850px) { .pilot-pc-row { grid-template-columns:minmax(0,1fr); } .pilot-pc-actions { max-width:none; } .pilot-pc-inbox .pilot-page-title { flex-wrap:wrap; gap:16px; } }

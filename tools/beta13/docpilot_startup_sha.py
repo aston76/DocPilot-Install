@@ -21,22 +21,49 @@ _watched=set()
 _watch_handles={}
 _stores={}
 _rescan=set()
+_catalogue_checked={}
 
-def refresh_catalogue(root):
-    """Refresh local folder choices; preserve labels/aliases of existing suppliers."""
+def refresh_catalogue(root,force=False):
+    """Map shared relative destinations to this PC; keep local custom names."""
     import docpilot_workspace as w
+    key=root_key(root)
+    if not force and time.monotonic()-_catalogue_checked.get(key,float('-inf'))<300:return
     with w._lock:
         current=w.read_catalogue()
-        if not current or root_key(current.get('root',''))!=root_key(root):return
+        if not current or root_key(current.get('root',''))!=key:return
         if not w.identity(root,current.get('company')):return
         fresh=w.bounded(lambda:w.catalogue_for(root,current['company']),5)
-        existing={item['path']:item for item in current.get('entries',[])}
-        entries=list(current.get('entries',[]))+[item for item in fresh['entries'] if item['path'] not in existing]
-        if entries!=current.get('entries',[]):
-            w.save_catalogue(dict(current,entries=entries))
+        try:peers,errors=w.bounded(lambda:store.shared_catalogue(root,current['company']),5)
+        except (OSError,ValueError):peers=[];errors=['Partage inaccessible']
+        previous={item['path']:item for item in current.get('entries',[])}
+        entries={path:dict(item,aliases=list(item.get('aliases',[]))) for path,item in previous.items()}
+        visible={item['path']:item for item in fresh['entries']}
+        for path,item in visible.items():
+            if path not in entries:entries[path]=dict(item)
+            # The actual year folders, rather than a remote machine's drive,
+            # determine how this destination is offered locally.
+            elif item.get('layout')=='year':entries[path]['layout']='year'
+        pending=set()
+        for item in peers:
+            path=item['path']
+            if path not in visible:pending.add(path);continue
+            target=entries[path]
+            if target.get('filename_label')==target.get('supplier'):
+                target['filename_label']=item['filename_label']
+            target['aliases']=list(dict.fromkeys(target.get('aliases',[])+item.get('aliases',[])))
+        updated=dict(current,entries=list(entries.values()))
+        if updated['entries']!=current.get('entries',[]):
+            w.save_catalogue(updated)
             from app.api import documents as d
             clear=getattr(d._archive,'_workspace_clear_catalogue',None)
             if clear:clear()
+        with _lock:
+            record(root).update(catalogue_pending=len(pending),catalogue_sync_at=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()))
+        try:w.bounded(lambda:store.publish(root,record(root),cache_path(root).parent,updated),5)
+        except (OSError,ValueError):errors.append('Publication inaccessible')
+        with _lock:
+            if errors:record(root)['shared_status']='partial'
+            _catalogue_checked[key]=time.monotonic()
 
 def refresh_requested():
     import docpilot_workspace as w
@@ -56,18 +83,21 @@ def refresh_shared(root):
             _remote[key]=entries
             record(root)['shared_status']='partial' if errors else 'available'
         if key in _dirty:
-            w.bounded(lambda:store.publish(root,record(root),cache_path(root).parent),5)
+            w.bounded(lambda:store.publish(root,record(root),cache_path(root).parent,w.read_catalogue()),5)
             with _lock:_dirty.discard(key)
     except (OSError,ValueError):
         with _lock:record(root)['shared_status']='unavailable'
 
 def periodic():
-    next_scan=time.monotonic()+600
+    next_scan=time.monotonic()+300
     while not _periodic_stop.wait(5):
         with _lock:roots=[_records.get(key,{}).get('root',key) for key in _requested]
-        for root in roots:refresh_shared(root)
+        for root in roots:
+            refresh_shared(root)
+            try:refresh_catalogue(root)
+            except (OSError,ValueError):logging.getLogger(__name__).warning('Synchronisation du catalogue différée')
         if time.monotonic()>=next_scan:
-            refresh_requested();next_scan=time.monotonic()+600
+            refresh_requested();next_scan=time.monotonic()+300
 
 def watch_archive(root):
     """Windows change notifications; periodic reconciliation is the fallback."""
@@ -92,7 +122,7 @@ def watch_archive(root):
             while offset<returned.value:
                 next_offset,action,length=struct.unpack_from('III',buffer.raw,offset)
                 name=buffer.raw[offset+12:offset+12+length].decode('utf-16-le')
-                if not name.startswith('.docpilot-index'):changed=True
+                if not name.startswith('DocPilot-Partage'):changed=True
                 if not next_offset:break
                 offset+=next_offset
             if changed:
@@ -136,7 +166,7 @@ def record(root):
 def progress(root):
     with _lock:
         data=record(root);state=_states.get(root_key(root),{})
-        return {key:data.get(key) for key in ('root','snapshot_at','last_scan','scan_errors','scan_error_examples','shared_status','shared_hints')} | {
+        return {key:data.get(key) for key in ('root','snapshot_at','last_scan','scan_errors','scan_error_examples','shared_status','shared_hints','catalogue_pending','catalogue_sync_at')} | {
             'indexed_files':data.get('indexed_files',len(data.get('files',{}))),
             'running':state.get('phase') in ('queued','discovering','hashing'),
             'phase':state.get('phase','idle'),'processed_files':state.get('processed_files',0),
@@ -157,7 +187,7 @@ def files_in(root):
     resolved_root=root.resolve()
     files=[];errors=[]
     for directory,dirs,names in os.walk(root,followlinks=False,onerror=lambda error:errors.append(str(error))):
-        dirs[:]=[name for name in dirs if name!='.docpilot-index' and not (Path(directory)/name).is_symlink()]
+        dirs[:]=[name for name in dirs if name!='DocPilot-Partage' and not (Path(directory)/name).is_symlink()]
         for name in names:
             path=Path(directory)/name
             if path.is_symlink() or name.endswith('.docpilot-part'):continue
@@ -222,7 +252,7 @@ def scan(root):
         _states[key].update(phase='partial' if errors else 'complete',percent=None if errors else 100,
             message='Scan incomplet : '+str(len(errors))+' erreur(s). Vérifiez les fichiers et relancez le scan.' if errors else 'Scan automatique terminé : '+str(len(saved))+' fichier(s) vérifié(s).')
     # New supplier folders created on another PC become local routing choices.
-    refresh_catalogue(root)
+    refresh_catalogue(root,force=True)
     return progress(root)
 
 def request_scan(root,once=True):

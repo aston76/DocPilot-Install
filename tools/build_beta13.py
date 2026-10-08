@@ -18,7 +18,7 @@ magic,size,offset,length,version,library=struct.unpack('!8sIIII64s',data[cookie:
 start=cookie+88-size;entries=[];pos=start+offset
 while pos<start+offset+length:
     n,at,packed,raw,flag,kind=struct.unpack('!iIIIBc',data[pos:pos+18]);entries.append([data[pos+18:pos+n],data[start+at:start+at+packed],raw,flag,kind]);pos+=n
-modules=['docpilot_startup_sha','docpilot_hash_store','docpilot_update']
+modules=['docpilot_startup_sha','docpilot_hash_store','docpilot_update','docpilot_pc_inbox']
 changed=[]
 for entry in entries:
     if entry[4]!=b'z':continue
@@ -29,6 +29,9 @@ for entry in entries:
         if name in modules:
             source=(SOURCES/(name+'.py')).read_text(encoding='utf-8')
             blob=zlib.compress(marshal.dumps(compile(source,name+'.py','exec')),6);changed.append(name)
+        elif name=='app.main':
+            source='import marshal as _beta13_marshal\nexec(_beta13_marshal.loads('+repr(zlib.decompress(blob))+'),globals())\nimport docpilot_pc_inbox\ndocpilot_pc_inbox.install(app)\n'
+            blob=zlib.compress(marshal.dumps(compile(source,'app/main.py','exec')),6);changed.append(name)
         new.append((name,(kind,len(output),len(blob))));output.extend(blob)
     for name in modules:
         if name in toc:continue
@@ -36,7 +39,7 @@ for entry in entries:
         new.append((name,(0,len(output),len(blob))));output.extend(blob);changed.append(name)
     at=len(output);output.extend(marshal.dumps(new));output[8:12]=struct.pack('!i',at)
     entry[1]=zlib.compress(bytes(output)) if entry[3] else bytes(output);entry[2]=len(output)
-assert set(changed)==set(modules)
+assert set(changed)==set(modules+['app.main'])
 payload=bytearray();toc_out=bytearray()
 for name,blob,raw,flag,kind in entries:
     toc_out.extend(struct.pack('!iIIIBc',18+len(name),len(payload),len(blob),raw,flag,kind)+name);payload.extend(blob)
