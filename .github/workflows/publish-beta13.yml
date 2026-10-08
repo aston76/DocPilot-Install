@@ -126,6 +126,12 @@ jobs:
           if((Get-FileHash (Join-Path $target 'DocPilot.exe')).Hash -ne (Get-FileHash release-package/candidate/DocPilot.exe).Hash){throw 'Installed executable differs'}
           $leftovers=@(Get-ChildItem (Split-Path $target -Parent) -Directory | Where-Object {$_.Name -like 'DocPilot-stage-*' -or $_.Name -like 'DocPilot-backup-*'})
           if($leftovers.Count){throw 'Staging folders were not cleaned'}
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Resolve-Path 'DocPilot-Update.ps1') -Mode Install -PortableArchive (Resolve-Path 'release-package/DocPilot-Windows-portable.zip')
+          if($LASTEXITCODE -ne 0){throw 'Full updater installation failed'}
+          $result=Get-Content (Join-Path $data 'update-state.json') -Raw | ConvertFrom-Json
+          if($result.status -ne 'complete' -or $result.percent -ne 100 -or $result.version -ne 'v0.1.0-beta.13'){throw 'Updater did not record completion'}
+          if((Get-Content $sentinel).Trim() -ne 'keep-private-data'){throw 'Updater changed data'}
+          if((Get-Content (Join-Path $target 'private-profile-sentinel.txt')).Trim() -ne 'keep-profile'){throw 'Updater lost profile'}
       - name: Publish complete release atomically
         if: github.event_name != 'pull_request'
         shell: pwsh
