@@ -1,3 +1,10 @@
+## v0.1.0-beta.12
+
+- Scan SHA-256 automatique en arrière-plan après vérification du dossier, puis à chaque réouverture.
+- Progression visible, un seul scan à la fois, cache séparé par archive et réutilisation des empreintes inchangées.
+- Fichiers modifiés/supprimés pris en compte, index partiel signalé, fichiers uniquement en ligne non téléchargés automatiquement.
+- Mise à jour prioritaire sur le scan ; tests du paquet sur Windows avec réouverture et archive temporaire.
+
 ## v0.1.0-beta.11
 
 - Détection portable du dossier Commun, lecteurs mappés et racines Synology Drive, choix par défaut local.

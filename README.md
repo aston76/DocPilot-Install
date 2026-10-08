@@ -31,3 +31,11 @@ Au démarrage, DocPilot vérifie le dossier Fournisseurs-Créanciers et la soci�
 Le contrôle vérifie la structure du dossier ; il ne prouve pas à lui seul que Synology a fini la synchronisation. Le tableau de synchronisation distingue la copie locale, la confirmation du NAS et une progression inconnue.
 
 Sources du correctif : `tools/beta11`. Construction reproductible depuis la beta.10 publique dont le SHA-256 est fixé : `python tools/build_beta11.py` (Python 3.12). GitHub teste le paquet sur Windows avant publication. Aucun catalogue ni document privé ne fait partie de la release.
+
+## Scan SHA automatique (beta.12)
+
+Le scan démarre après vérification du dossier et se relance à chaque ouverture. Son état apparaît sur la page Documents/Ajouter et classer. La progression est calculée sur les fichiers vérifiés une fois la liste connue. Les empreintes des fichiers inchangés sont conservées localement, séparément pour chaque archive ; aucune écriture n’est faite dans les archives.
+
+Les fichiers Synology uniquement en ligne doivent être rendus disponibles hors connexion pour être vérifiés. Un scan partiel ne confirme pas l’absence de doublon. La présence et le contenu des correspondances restent contrôlés avant de les déclarer identiques. Construction du paquet : `python tools/build_beta12.py` avec Python 3.12, à partir de la beta.11 publique vérifiée par SHA-256.
+
+Les archives déjà utilisées sont réactualisées chaque minute et les nouveaux dossiers visibles via Synology Drive sont ajoutés au catalogue local. Les empreintes restent séparées par poste ; les fichiers et dossiers sont synchronisés par Synology. Cette synchronisation ne garantit pas l’exclusion de deux classements simultanés sur deux PC : un verrou commun sur le NAS serait nécessaire pour cette garantie.
