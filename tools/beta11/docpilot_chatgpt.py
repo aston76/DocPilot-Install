@@ -354,5 +354,3 @@ async function action(fn){try{$('error').textContent='';await fn();await refresh
 async function login(account){let popup=window.open('about:blank','docpilot-chatgpt-login');try{let r=await call('login',{account_id:account||null});if(popup)popup.location=r.url;else{let a=document.createElement('a');a.href=r.url;a.target='_blank';a.rel='noreferrer';a.textContent='Ouvrir la connexion ChatGPT';$('error').replaceChildren(a)}await refresh()}catch(e){if(popup)popup.close();$('error').textContent=e.message}}
 $('login').onclick=()=>login();$('reconnect').onclick=()=>login(state.active);$('disconnect').onclick=()=>action(()=>call('disconnect',{}));$('enabled').onchange=()=>action(()=>call('enabled',{enabled:$('enabled').checked}));refresh();setInterval(()=>{if(state.pending)refresh()},2500);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 </script></html>'''
-
-
