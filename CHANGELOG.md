@@ -1,3 +1,11 @@
+## v0.1.0-beta.11
+
+- Détection portable du dossier Commun, lecteurs mappés et racines Synology Drive, choix par défaut local.
+- Vérification obligatoire au démarrage et avant classement ; message bloquant et choix manuel en cas de dossier absent, incorrect ou ambigu.
+- Limites d’attente des lecteurs inaccessibles, étapes et durées du traitement, correction manuelle des champs ambigus.
+- Dates de facture distinctes de l’échéance et de l’arrivée ; suivi de copie et états de synchronisation par fichier sans pourcentage inventé.
+- Construction depuis le paquet public vérifié, test de démarrage Windows et publication après dépôt complet des fichiers ZIP/SHA-256.
+
 # Versions de DocPilot
 
 ## v0.1.0-beta.10 — 5 octobre 2026
