@@ -71,15 +71,21 @@ def progress(root):
 
 def fingerprint(stat):return [stat.st_size,stat.st_mtime_ns,stat.st_ctime_ns]
 
+def online_only(stat):
+    attributes=getattr(stat,'st_file_attributes',0)
+    cloud=(getattr(stat,'st_reparse_tag',0)&0xFFFF0FFF)==0x9000001A
+    return bool(attributes&0x1000 or (cloud and attributes&(0x40000|0x400000)))
+
 def files_in(root):
     if not root.is_dir():raise OSError('Dossier de travail inaccessible.')
+    resolved_root=root.resolve()
     files=[];errors=[]
     for directory,dirs,names in os.walk(root,followlinks=False,onerror=lambda error:errors.append(str(error))):
         dirs[:]=[name for name in dirs if not (Path(directory)/name).is_symlink()]
         for name in names:
             path=Path(directory)/name
             if path.is_symlink() or name.endswith('.docpilot-part'):continue
-            if path.resolve().is_relative_to(root):files.append(path)
+            if path.resolve().is_relative_to(resolved_root):files.append(path)
     return files,errors
 
 def read_hash(path,before):
@@ -102,7 +108,7 @@ def scan(root):
         try:
             before=w.bounded(path.stat)
             # Avoid automatically downloading every on-demand Drive document.
-            if getattr(before,'st_file_attributes',0)&(0x1000|0x40000|0x400000):
+            if online_only(before):
                 raise OSError('Fichier uniquement en ligne : rendez-le disponible hors connexion pour le vérifier.')
             signature=fingerprint(before);old=previous.get('files',{}).get(relative)
             digest=old[3] if old and old[:3]==signature else w.bounded(lambda:read_hash(path,before),20)

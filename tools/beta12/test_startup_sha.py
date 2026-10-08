@@ -8,6 +8,9 @@ spec=importlib.util.spec_from_file_location('docpilot_workspace',workspace_path)
 w=importlib.util.module_from_spec(spec);sys.modules[spec.name]=w;spec.loader.exec_module(w)
 sys.modules['docpilot_update']=types.SimpleNamespace(_state={'status':'current'})
 import docpilot_startup_sha as sha
+assert not sha.online_only(types.SimpleNamespace(st_file_attributes=0x40000,st_reparse_tag=0)), 'Extended attributes alone are not an online-only placeholder'
+assert sha.online_only(types.SimpleNamespace(st_file_attributes=0x40000,st_reparse_tag=0x9000001A))
+assert sha.online_only(types.SimpleNamespace(st_file_attributes=0x1000,st_reparse_tag=0))
 def wait():
     deadline=time.monotonic()+5
     while sha._pending and time.monotonic()<deadline:time.sleep(.01)
@@ -22,6 +25,12 @@ with tempfile.TemporaryDirectory() as temporary:
     first,second=roots
     (first/'Factures/a.pdf').write_bytes(b'%PDF test');(first/'Factures/unfinished.docpilot-part').write_bytes(b'partial')
     (second/'Factures/b.pdf').write_bytes(b'%PDF other')
+    if os.name=='nt':
+        import ctypes
+        buffer=ctypes.create_unicode_buffer(32768)
+        if ctypes.windll.kernel32.GetShortPathNameW(str(base),buffer,len(buffer)):
+            alias=Path(buffer.value)/'Example'/w.LEAF
+            assert len(sha.files_in(alias)[0])==1,'8.3 parent aliases must not hide archive files'
     assert sha.request_scan(first)['phase']=='blocked';assert not sha._pending
     w._state.update(ready=True)
     entered=threading.Event();release=threading.Event();original=sha.read_hash;calls=[]
