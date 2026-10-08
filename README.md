@@ -39,3 +39,11 @@ Le scan démarre après vérification du dossier et se relance à chaque ouvertu
 Les fichiers Synology uniquement en ligne doivent être rendus disponibles hors connexion pour être vérifiés. Un scan partiel ne confirme pas l’absence de doublon. La présence et le contenu des correspondances restent contrôlés avant de les déclarer identiques. Construction du paquet : `python tools/build_beta12.py` avec Python 3.12, à partir de la beta.11 publique vérifiée par SHA-256.
 
 Les archives déjà utilisées sont réactualisées chaque minute et les nouveaux dossiers visibles via Synology Drive sont ajoutés au catalogue local. Les empreintes restent séparées par poste ; les fichiers et dossiers sont synchronisés par Synology. Cette synchronisation ne garantit pas l’exclusion de deux classements simultanés sur deux PC : un verrou commun sur le NAS serait nécessaire pour cette garantie.
+
+## Index local et mise à jour visible (beta.13)
+
+La beta.13 utilise SQLite embarqué sur chaque PC et reprend automatiquement les anciens caches SHA. Les recherches visent les correspondances indexées, sans relire chaque facture du fournisseur. Des instantanés distincts par poste dans `.docpilot-index/v1` servent d’indices partagés ; SQLite reste local. La cohérence entre postes dépend de la synchronisation Synology et ne constitue pas un verrou distribué.
+
+La fenêtre de mise à jour indépendante montre le téléchargement, la préparation et le résultat. Après réussite, OK relance le programme. Les fichiers du programme sont préparés dans un dossier temporaire avant remplacement ; les données locales sont conservées. Les notifications Windows et un contrôle périodique actualisent les empreintes.
+
+Le workflow `publish-beta13.yml` teste le paquet sur Windows x64 avant publication. L’interface Mac de développement ne constitue pas un paquet distribué et ne reçoit pas ce moteur automatiquement.
