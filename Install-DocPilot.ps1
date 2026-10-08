@@ -1,4 +1,10 @@
-# Installe ou met à jour le programme uniquement. Les données restent dans LOCALAPPDATA\DocPilot.
+﻿# Installe ou met à jour le programme uniquement. Les données restent dans LOCALAPPDATA\DocPilot.
+function File-Sha256([string]$path) {
+    $algorithm=[Security.Cryptography.SHA256]::Create()
+    $stream=[IO.File]::OpenRead($path)
+    try {return [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}
+    finally {$stream.Dispose();$algorithm.Dispose()}
+}
 $ErrorActionPreference = 'Stop'
 $source = $PSScriptRoot
 $target = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot'
@@ -21,11 +27,34 @@ if ($running.Count -gt 0) {
     }
 }
 
-New-Item -ItemType Directory -Force -Path $target | Out-Null
-# Copying program files preserves the local database, connection and archive indexes.
-Get-ChildItem -LiteralPath $source -Force | Where-Object { $_.Name -ne 'Install-DocPilot.ps1' } | ForEach-Object {
-    Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
+# Stage and verify the entire program before replacing the installed folder.
+# Data lives elsewhere; keep the previous program for rollback.
+$parent=Split-Path $target -Parent
+New-Item -ItemType Directory -Force -Path $parent | Out-Null
+$stage=Join-Path $parent ('DocPilot-stage-'+[Guid]::NewGuid().ToString('N'))
+$backup=Join-Path $parent ('DocPilot-backup-'+[Guid]::NewGuid().ToString('N'))
+$swapped=$false
+try {
+    New-Item -ItemType Directory -Force -Path $stage | Out-Null
+    if(Test-Path -LiteralPath $target){
+        Get-ChildItem -LiteralPath $target -Force | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force}
+    }
+    Get-ChildItem -LiteralPath $source -Force | Where-Object {$_.Name -ne 'Install-DocPilot.ps1'} | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force
+    }
+    $sourceHash=(File-Sha256 (Join-Path $source 'DocPilot.exe'))
+    if((File-Sha256 (Join-Path $stage 'DocPilot.exe')) -ne $sourceHash){throw 'Vérification du programme échouée.'}
+    if(-not (Test-Path -LiteralPath (Join-Path $stage 'web\index.html'))){throw 'Interface absente du paquet.'}
+    if(Test-Path -LiteralPath $target){Move-Item -LiteralPath $target -Destination $backup}
+    try {Move-Item -LiteralPath $stage -Destination $target;$swapped=$true} catch {
+        if(Test-Path -LiteralPath $backup){Move-Item -LiteralPath $backup -Destination $target}
+        throw
+    }
+} finally {
+    if(Test-Path -LiteralPath $stage){Remove-Item -LiteralPath $stage -Recurse -Force}
+    if($swapped -and (Test-Path -LiteralPath $backup)){Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue}
 }
+try {
 $shell = New-Object -ComObject WScript.Shell
 $shortcutPaths = @(
     (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\DocPilot.lnk'),
@@ -40,6 +69,7 @@ foreach ($shortcutPath in $shortcutPaths) {
     if (Test-Path -LiteralPath $icon) { $shortcut.IconLocation = $icon }
     $shortcut.Save()
 }
+} catch { Write-Warning ('Programme installé ; raccourci indisponible : '+$_.Exception.Message) }
 Write-Host "DocPilot installé : $target"
 Write-Host 'Lancez DocPilot depuis le Bureau ou le menu Démarrer.'
 Write-Host 'Vos documents et informations de connexion sont conservés.'

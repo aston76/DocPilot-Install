@@ -1,3 +1,14 @@
+# Beta.13 — index SQLite local et mise à jour visible
+
+- Migration automatique du cache SHA, recherche ciblée, index actualisé après classement.
+- Index partagés par poste sur le stockage existant, sans base SQLite sur SMB.
+- Notifications Windows et contrôle de rattrapage toutes les cinq minutes.
+- Catalogue relatif des destinations partagé entre postes, sans remplacer leurs chemins locaux.
+- Onglet Sur ce PC : détection sur demande, doublons exacts, import et deux choix de suppression avec audit.
+- Fenêtre indépendante : progression, résultat, OK puis relancement.
+- Installation préparée avant remplacement et conservation des données.
+- Synchronisation différée : pas de verrouillage entre deux PC.
+
 ## v0.1.0-beta.12
 
 - Scan SHA-256 automatique en arrière-plan après vérification du dossier, puis à chaque réouverture.

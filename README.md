@@ -39,3 +39,19 @@ Le scan démarre après vérification du dossier et se relance à chaque ouvertu
 Les fichiers Synology uniquement en ligne doivent être rendus disponibles hors connexion pour être vérifiés. Un scan partiel ne confirme pas l’absence de doublon. La présence et le contenu des correspondances restent contrôlés avant de les déclarer identiques. Construction du paquet : `python tools/build_beta12.py` avec Python 3.12, à partir de la beta.11 publique vérifiée par SHA-256.
 
 Les archives déjà utilisées sont réactualisées chaque minute et les nouveaux dossiers visibles via Synology Drive sont ajoutés au catalogue local. Les empreintes restent séparées par poste ; les fichiers et dossiers sont synchronisés par Synology. Cette synchronisation ne garantit pas l’exclusion de deux classements simultanés sur deux PC : un verrou commun sur le NAS serait nécessaire pour cette garantie.
+
+## Index local et mise à jour visible (beta.13)
+
+La beta.13 utilise SQLite embarqué sur chaque PC et reprend automatiquement les anciens caches SHA. Les recherches visent les correspondances indexées, sans relire chaque facture du fournisseur. Des instantanés distincts par poste dans `DocPilot-Partage/v1` servent d’indices partagés ; SQLite reste local. La cohérence entre postes dépend de la synchronisation Synology et ne constitue pas un verrou distribué.
+
+La fenêtre de mise à jour indépendante montre le téléchargement, la préparation et le résultat. Après réussite, OK relance le programme. Les fichiers du programme sont préparés dans un dossier temporaire avant remplacement ; les données locales sont conservées. Les notifications Windows et un contrôle périodique actualisent les empreintes.
+
+Le workflow `publish-beta13.yml` teste le paquet sur Windows x64 avant publication. L’interface Mac de développement ne constitue pas un paquet distribué et ne reçoit pas ce moteur automatiquement.
+
+Le catalogue des destinations est partagé via les mêmes instantanés privés. Le contrôle se fait au démarrage, après notification Windows et toutes les cinq minutes. Il importe les alias et noms proposés pour les dossiers réellement présents et conserve les chemins et personnalisations du poste. Un dossier annoncé mais encore absent attend sa synchronisation Synology. Les PC doivent viser la même archive partagée ; ce mécanisme ne remplace pas la synchronisation des documents par Synology Drive.
+
+## Factures oubliées sur le PC
+
+Dans « Sur ce PC », « Détecter les factures sur ce PC » lance une recherche locale en arrière-plan. Les dossiers NAS/Drive identifiés et dossiers système sont exclus. Les copies exactes connues du NAS et les documents déjà présents dans DocPilot sont signalés ; une vérification incomplète ne confirme pas l’absence de doublon. Les images/scans/Office incertains demandent une vérification. Aucun import ni nettoyage ne se fait sans action de l’utilisateur.
+
+« Retirer de la liste » garde le fichier. « Supprimer aussi du PC » demande confirmation, protège les archives et fichiers modifiés, et journalise l’utilisateur, la machine et le chemin. Cette suppression est définitive sur le PC ; elle n’efface pas le document archivé sur le NAS. Les fichiers uniquement en ligne ou de plus de 100 Mo ne sont pas lus ; les accès refusés et recherches limitées restent signalés.
