@@ -28,6 +28,9 @@ with tempfile.TemporaryDirectory() as temporary:
     assert not w.identity(first,'Other Company')
     assert not w.identity(first.parent,'Example')
     assert len(w.discover('Example',[base/'Drive',first]))==1
+    original_roots=w.search_roots;w.search_roots=lambda:[base/'Drive']
+    assert len(w.discover('Example'))==1,'Automatic roots must receive a separate probe deadline'
+    w.search_roots=original_roots
     assert len(w.discover('Example',[base/'Drive',base/'mapped']))==2
     archive(base/'custom'/'Commun');assert len(w.discover('Example',[base/'custom']))==1
     session=Session();d=types.SimpleNamespace(_archive=types.SimpleNamespace())

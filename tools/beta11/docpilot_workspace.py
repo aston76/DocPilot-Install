@@ -62,6 +62,7 @@ def search_roots():
     return list(dict.fromkeys(roots))
 
 def discover(company=None,roots=None):
+    values=roots if roots is not None else search_roots()
     found={};deadline=time.monotonic()+12
     def probe(base):
         if not base.is_dir():return []
@@ -74,10 +75,10 @@ def discover(company=None,roots=None):
                 if index>=300:break
                 if child.is_dir() and not child.is_symlink():candidates.extend(child/leaf for leaf in leaves)
         return [{'root':str(candidate.resolve()),'company':candidate.parent.name} for candidate in candidates if _identity(candidate,company)]
-    for value in roots if roots is not None else search_roots():
+    for value in values:
         if time.monotonic()>=deadline:break
         try:
-            for choice in bounded(lambda:probe(Path(value)),min(2,max(.01,deadline-time.monotonic()))):
+            for choice in bounded(lambda value=value:probe(Path(value)),min(2,max(.01,deadline-time.monotonic()))):
                 found[os.path.normcase(choice['root'])]=choice
         except (OSError,ValueError):continue
     return list(found.values())
@@ -107,7 +108,7 @@ def apply_root(session,d,root,company,catalogue):
     from sqlalchemy import select
     root=Path(root).resolve()
     if not identity(root,company):raise ValueError('Ce dossier ne correspond pas à l’archive attendue de '+company+'.')
-    record=dict(catalogue or catalogue_for(root,company),root=str(root),company=company)
+    record=dict(catalogue or bounded(lambda:catalogue_for(root,company)),root=str(root),company=company)
     # Only the local storage configuration changes; the NAS is read-only here.
     from app.domain.system import StorageConfig
     storage=session.scalars(select(StorageConfig).where(StorageConfig.active==True)).first()
@@ -237,11 +238,14 @@ def install(app):
         body=await request.json()
         root=body.get('root') if isinstance(body,dict) else None
         if not isinstance(root,str):raise HTTPException(422,'Choisissez un dossier de travail.')
-        catalogue=read_catalogue();company=(catalogue or {}).get('company') or Path(root).parent.name
-        with _lock:
-            if not identity(root,company):raise HTTPException(422,'Dossier incorrect : société, archive et catégories ne correspondent pas.')
-            apply_root(session,d,root,company,catalogue)
-        return dict(_state)
+        def select_root():
+            catalogue=read_catalogue();company=(catalogue or {}).get('company') or Path(root).parent.name
+            with _lock:
+                if not identity(root,company):raise HTTPException(422,'Dossier incorrect : société, archive et catégories ne correspondent pas.')
+                apply_root(session,d,root,company,catalogue)
+            return dict(_state)
+        from starlette.concurrency import run_in_threadpool
+        return await run_in_threadpool(select_root)
     app.router.routes[0:0]=router.routes
     original_lifespan=app.router.lifespan_context
     @asynccontextmanager
