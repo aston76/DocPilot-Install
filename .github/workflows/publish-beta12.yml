@@ -19,12 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build from checksum-verified public beta 11
-        run: python tools/build_beta12.py
       - name: Verify startup scan, progress and cache isolation
         run: python tools/beta12/test_startup_sha.py
       - name: Verify scan progress display
         run: node tools/beta12/test_scan_ui.cjs
+      - name: Build from checksum-verified public beta 11
+        run: python tools/build_beta12.py
       - name: Verify candidate starts and blocks work without an archive
         shell: pwsh
         run: |

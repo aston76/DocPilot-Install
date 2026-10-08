@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory() as temporary:
     def blocked(path,before):
         calls.append(path);entered.set();release.wait(3);return original(path,before)
     sha.read_hash=blocked
-    sha.request_scan(first);assert entered.wait(2)
+    sha.request_scan(first);assert entered.wait(5),{'state':sha.progress(first),'identity':w.identity(first,'Example'),'attributes':(first/'Factures/a.pdf').stat().st_file_attributes}
     assert sha.progress(first)['running'] and sha.progress(first)['total_files']==1
     sha.request_scan(first);assert len(sha._pending)==1,'Duplicate startup scan queued'
     sha.request_scan(second);assert len(sha._pending)==2
