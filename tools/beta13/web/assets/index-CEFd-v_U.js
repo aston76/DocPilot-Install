@@ -241,13 +241,15 @@ function Sa({docs:e,open:t,remove:n}){return e.length?o.jsx("div",{className:"pi
 
 function AppUpdateButton(){
  const [state,setState]=N.useState(null),[opened,setOpened]=N.useState(false),[error,setError]=N.useState('');
+ const lastStatus=N.useRef(null);
  const active=state?.status==='installing';
  const refresh=async()=>{try{
    const r=await fetch('/api/v1/system/update',{cache:'no-store'});if(!r.ok)return;
    const next=await pilotApiJson(r);
    setState(previous=>{if(previous?.status==='installing'&&previous.current!==next.current){window.location.reload();}return next;});
    setError('');
-   if(next.status==='installing'||next.status==='complete'||next.status==='error')setOpened(true);
+   if(['installing','complete','error'].includes(next.status)&&lastStatus.current!==next.status)setOpened(true);
+   lastStatus.current=next.status;
  }catch{setState(previous=>previous?.status==='installing'?{...previous,message:'DocPilot se ferme pour appliquer la mise à jour. Suivez la fenêtre de mise à jour ; il sera relancé après OK.'}:previous)}};
  N.useEffect(()=>{refresh();const timer=setInterval(refresh,1000);return()=>clearInterval(timer)},[]);
  const action=async value=>{setError('');try{const r=await fetch('/api/v1/system/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:value})});const next=await pilotApiJson(r);if(!r.ok)throw Error(next.detail||'Mise à jour indisponible');setState(next);}catch(e){setError(e.message)}};

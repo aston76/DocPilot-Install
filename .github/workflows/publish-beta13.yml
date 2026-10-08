@@ -34,7 +34,7 @@ jobs:
       - name: Parse installer scripts and verify update UI protocol
         shell: pwsh
         run: |
-          foreach ($script in @('DocPilot-Update.ps1','Install-DocPilot.ps1')) {
+          foreach ($script in @('DocPilot-Update.ps1','Install-DocPilot.ps1','tools/beta13/test_update_window.ps1')) {
             $tokens=$null;$errors=$null
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script),[ref]$tokens,[ref]$errors)
             if($errors.Count){throw (($errors | ForEach-Object { $_.Message+' at line '+$_.Extent.StartLineNumber }) -join "`n")}
@@ -126,8 +126,8 @@ jobs:
           if((Get-FileHash (Join-Path $target 'DocPilot.exe')).Hash -ne (Get-FileHash release-package/candidate/DocPilot.exe).Hash){throw 'Installed executable differs'}
           $leftovers=@(Get-ChildItem (Split-Path $target -Parent) -Directory | Where-Object {$_.Name -like 'DocPilot-stage-*' -or $_.Name -like 'DocPilot-backup-*'})
           if($leftovers.Count){throw 'Staging folders were not cleaned'}
-          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Resolve-Path 'DocPilot-Update.ps1') -Mode Install -PortableArchive (Resolve-Path 'release-package/DocPilot-Windows-portable.zip')
-          if($LASTEXITCODE -ne 0){throw 'Full updater installation failed'}
+          & tools/beta13/test_update_window.ps1
+          if($LASTEXITCODE -ne 0){throw 'Native updater installation failed'}
           $result=Get-Content (Join-Path $data 'update-state.json') -Raw | ConvertFrom-Json
           if($result.status -ne 'complete' -or $result.percent -ne 100 -or $result.version -ne 'v0.1.0-beta.13'){throw 'Updater did not record completion'}
           if((Get-Content $sentinel).Trim() -ne 'keep-private-data'){throw 'Updater changed data'}
