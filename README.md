@@ -22,6 +22,8 @@ Pour installer depuis un fichier PowerShell portable, telecharger [Installer-Doc
 
 A partir de beta.7, DocPilot verifie GitHub au demarrage et installe automatiquement une version plus recente, apres la fin des analyses. Le bouton Mise a jour permet aussi de controler la version manuellement. L'installation conserve la base locale, les connexions et le profil NAS ; un echec de reseau ou de verification est signale sans lancer l'installation.
 
+**Migration vers beta.13 :** le test depuis la beta.12 publique a révélé que son ancien script peut échouer avec `Get-FileHash introuvable` avant installation. Sur un poste touché, exécuter une fois la commande PowerShell ci-dessus pour recevoir beta.13 ; les données et réglages sont conservés. La beta.13 corrige ce problème dans son propre mécanisme de mise à jour, mais ne peut pas réparer à distance le script déjà présent dans une ancienne installation. L’installation publique et la réinstallation avec conservation des données ont été vérifiées sur Windows : [test réussi](https://github.com/aston76/DocPilot-Install/actions/runs/37771071192).
+
 Pour les deploiements de plusieurs postes, un profil prive peut accompagner le paquet NAS dans un dossier deployment-profile. Il contient le catalogue de destinations et les references de classement, sans documents ni connexions. Il reste sur le partage interne et n'est pas dans ce depot public. Si le chemin d'origine est inaccessible, le programme d'installation recherche l'archive dans Commun parmi les lecteurs connectes et les dossiers Synology Drive ; une correspondance ambigue demande un choix. Les quatre postes conservent chacun leur base et leur connexion IA.
 
 ## Dossier de travail portable (beta.11)
