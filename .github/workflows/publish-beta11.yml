@@ -1,0 +1,66 @@
+name: Build and publish verified beta 11
+on:
+  push:
+    branches: [main]
+    paths: ['tools/beta11/**', 'tools/build_beta11.py', '.github/workflows/publish-beta11.yml', 'Discover-DocPilotArchive.ps1', 'Find-DocPilotNAS.ps1']
+  pull_request:
+    paths: ['tools/beta11/**', 'tools/build_beta11.py', '.github/workflows/publish-beta11.yml', 'Discover-DocPilotArchive.ps1', 'Find-DocPilotNAS.ps1']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build from checksum-verified public beta 10
+        run: python tools/build_beta11.py
+      - name: Verify archive discovery without modifying the NAS
+        run: python tools/beta11/test_workspace.py
+      - name: Verify candidate starts and blocks work without an archive
+        shell: pwsh
+        run: |
+          Expand-Archive release-package/DocPilot-Windows-portable.zip release-package/candidate
+          $process = Start-Process (Resolve-Path release-package/candidate/DocPilot.exe) -WorkingDirectory (Resolve-Path release-package/candidate) -PassThru -WindowStyle Hidden
+          try {
+            $healthy = $false
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                $health = Invoke-RestMethod http://127.0.0.1:8765/api/v1/health -TimeoutSec 2
+                if ($health.status -eq 'ok') { $healthy = $true; break }
+              } catch {}
+              Start-Sleep -Seconds 1
+            }
+            if (-not $healthy) { throw 'Candidate failed to start' }
+            $version = Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/update -TimeoutSec 5
+            if ($version.current -ne 'v0.1.0-beta.11') { throw 'Wrong executable version' }
+            $workspace = Invoke-RestMethod http://127.0.0.1:8765/api/v1/workspace -TimeoutSec 5
+            if ($workspace.ready) { throw 'Clean machine must not choose an unrelated archive' }
+            try {
+              Invoke-WebRequest http://127.0.0.1:8765/api/v1/documents/upload -Method Post -UseBasicParsing -TimeoutSec 5
+              throw 'Upload was not blocked'
+            } catch {
+              if ([int]$_.Exception.Response.StatusCode -ne 423) { throw }
+            }
+            $page = (Invoke-WebRequest http://127.0.0.1:8765/ -UseBasicParsing).Content
+            if ($page -notmatch 'workspace-beta11') { throw 'Outdated frontend' }
+          } finally { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+      - name: Publish complete release atomically
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create v0.1.0-beta.11 release-package/DocPilot-Windows-portable.zip release-package/DocPilot-Windows-portable.zip.sha256 --draft --prerelease --title "DocPilot beta.11 - archive detection and startup checks" --notes-file tools/beta11/RELEASE_NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Draft upload failed' }
+          gh release view v0.1.0-beta.11 --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw 'Asset verification failed' }
+          gh release edit v0.1.0-beta.11 --draft=false --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Publication failed' }

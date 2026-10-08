@@ -23,3 +23,11 @@ Pour installer depuis un fichier PowerShell portable, telecharger [Installer-Doc
 A partir de beta.7, DocPilot verifie GitHub au demarrage et installe automatiquement une version plus recente, apres la fin des analyses. Le bouton Mise a jour permet aussi de controler la version manuellement. L'installation conserve la base locale, les connexions et le profil NAS ; un echec de reseau ou de verification est signale sans lancer l'installation.
 
 Pour les deploiements de plusieurs postes, un profil prive peut accompagner le paquet NAS dans un dossier deployment-profile. Il contient le catalogue de destinations et les references de classement, sans documents ni connexions. Il reste sur le partage interne et n'est pas dans ce depot public. Si le chemin d'origine est inaccessible, le programme d'installation recherche l'archive dans Commun parmi les lecteurs connectes et les dossiers Synology Drive ; une correspondance ambigue demande un choix. Les quatre postes conservent chacun leur base et leur connexion IA.
+
+## Dossier de travail portable (beta.11)
+
+Au démarrage, DocPilot vérifie le dossier Fournisseurs-Créanciers et la société attendue. Il recherche les lecteurs Windows, Commun et les racines configurées dans Synology Drive. Un seul résultat valide devient le dossier par défaut de ce poste. Aucun résultat ou plusieurs résultats bloquent le traitement jusqu’à vérification dans le bandeau Dossier de travail. Un dossier manuel doit avoir le bon nom de société et les catégories attendues.
+
+Le contrôle vérifie la structure du dossier ; il ne prouve pas à lui seul que Synology a fini la synchronisation. Le tableau de synchronisation distingue la copie locale, la confirmation du NAS et une progression inconnue.
+
+Sources du correctif : `tools/beta11`. Construction reproductible depuis la beta.10 publique dont le SHA-256 est fixé : `python tools/build_beta11.py` (Python 3.12). GitHub teste le paquet sur Windows avant publication. Aucun catalogue ni document privé ne fait partie de la release.
