@@ -1,0 +1,80 @@
+name: Build and publish verified beta 21
+on:
+  push:
+    branches: [main]
+    paths: ['tools/beta21/**', 'tools/build_beta21.py', '.github/workflows/publish-beta21.yml']
+  pull_request:
+    paths: ['tools/beta21/**', 'tools/build_beta21.py', '.github/workflows/publish-beta21.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate scanner code
+        run: |
+          python -m pip install fastapi==0.143.0 httpx==0.28.1 pymupdf==1.28.2
+          if($LASTEXITCODE -ne 0){throw 'Test dependencies failed'}
+          python tools/beta21/test_scanner.py
+          if($LASTEXITCODE -ne 0){throw 'Scanner regression failed'}
+          python tools/beta21/test_escl_integration.py
+          if($LASTEXITCODE -ne 0){throw 'API integration failed'}
+          python -m unittest discover -s tools/kyocera_escl -v
+          if($LASTEXITCODE -ne 0){throw 'API security tests failed'}
+          Copy-Item tools/beta21/scanner_ui.js $env:RUNNER_TEMP/scanner-ui.mjs
+          node --check $env:RUNNER_TEMP/scanner-ui.mjs
+          if($LASTEXITCODE -ne 0){throw 'Scanner UI syntax failed'}
+      - name: Build from verified beta 20
+        run: python tools/build_beta21.py
+      - name: Smoke test frozen application
+        run: |
+          Expand-Archive release-package21/DocPilot-Windows-portable.zip release-package21/candidate
+          $root=Resolve-Path release-package21/candidate
+          $process=Start-Process (Join-Path $root 'DocPilot.exe') -WorkingDirectory $root -PassThru -WindowStyle Hidden
+          try {
+            $healthy=$false
+            for($i=0;$i -lt 60;$i++){
+              try {$health=Invoke-RestMethod http://127.0.0.1:8765/api/v1/health -TimeoutSec 2;if($health.status -eq 'ok'){$healthy=$true;break}}catch{}
+              Start-Sleep -Seconds 1
+            }
+            if(-not $healthy){throw 'Frozen app failed to start'}
+            $version=Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/update
+            if($version.current -ne 'v0.1.0-beta.21'){throw 'Wrong app version'}
+            $scanner=Invoke-RestMethod http://127.0.0.1:8765/api/v1/scanner
+            if($scanner.running -or $scanner.pages -ne 0){throw 'Scanner did not start idle'}
+            $devices=Invoke-RestMethod http://127.0.0.1:8765/api/v1/scanner/devices -TimeoutSec 30
+            if(-not $devices.supported){throw 'Scanner backend missing'}
+            $page=Get-Content (Join-Path $root 'web/assets/index-CEFd-v_U.js') -Raw
+            if($page -notmatch 'Approuver le scanner API'){throw 'API configuration UI missing'}
+          } finally {
+            try {Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/quit -Method Post -ContentType 'application/json' -Body '{"quit":true}'|Out-Null}catch{}
+            Start-Sleep -Seconds 2
+            if(-not $process.HasExited){$process.Kill()}
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DocPilot-beta21-verified
+          path: |
+            release-package21/DocPilot-Windows-portable.zip
+            release-package21/DocPilot-Windows-portable.zip.sha256
+            release-package21/verification.json
+      - name: Publish complete release
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.1.0-beta.21 release-package21/DocPilot-Windows-portable.zip release-package21/DocPilot-Windows-portable.zip.sha256 --draft --prerelease --title "DocPilot beta 21 - scan direct eSCL" --notes-file tools/beta21/RELEASE_NOTES.md
+          if($LASTEXITCODE -ne 0){throw 'Draft release failed'}
+          gh release edit v0.1.0-beta.21 --draft=false --prerelease
+          if($LASTEXITCODE -ne 0){throw 'Release publication failed'}

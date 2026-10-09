@@ -1,8 +1,10 @@
 # Scan Kyocera direct par API eSCL
 
-Prototype de capture locale PDF, sans application Kyocera, sans WIA, sans import
-ni classement. **Ce prototype n'est pas encore raccordé au bouton Numériser de
-DocPilot, et ne constitue pas une nouvelle version installable de DocPilot.**
+Outil de capture locale PDF, sans application Kyocera, sans WIA, sans import
+ni classement. L'intégration au panneau Numériser est maintenant dans
+`tools/beta21/docpilot_scanner.py` et `docpilot_escl.py` ; le paquet beta.21 est
+construit par `tools/build_beta21.py`. Voir les [notes beta 21](../beta21/RELEASE_NOTES.md)
+pour la détection et l'approbation du scanner depuis DocPilot.
 
 ## Résultat matériel du 9 octobre 2026
 
@@ -62,13 +64,13 @@ aucun original existant n'est supprimé ou écrasé. Un en-tête et une fin de P
 contrôlés avant publication ; un décodeur PDF reste nécessaire dans DocPilot pour
 valider complètement le document.
 
-## Intégration restant à faire dans DocPilot
+## Évolution du backend intégré
 
-- Découvrir l'endpoint et demander la confiance du certificat sur le poste.
-- Ajouter un backend eSCL au panneau scanner avec sélection explicite de la source.
-- Récupérer le PDF dans la session d'aperçu locale et le décoder avant import.
-- Conserver la validation actuelle du document et le suivi de sa destination.
-- Gérer progression, délais, annulation du seul travail créé, chargeur et pages multiples.
+- Beta.21 découvre l'endpoint, demande la confiance du certificat, propose la
+  connexion API et décode le PDF dans l'aperçu existant. Les pages ajoutées sont
+  conservées, et seul le travail créé par la capture est fermé après réception.
+- L'acquisition reste une page sur la vitre ; le chargeur et une annulation
+  utilisateur pendant l'acquisition restent à étendre.
 - Tester une vraie facture et le retour après veille avant toute publication de version.
 
 Références : [documentation Kyocera Print Center](https://www.kyoceradocumentsolutions.com/support/printcenter/data/en/scanning.html),
