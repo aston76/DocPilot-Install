@@ -134,8 +134,9 @@ jobs:
               Start-Sleep -Seconds 1
             }
             if($catalogue.status -ne 'complete' -or $catalogue.discovered -ne 36){throw ('Packaged catalogue recovery failed: '+($catalogue|ConvertTo-Json -Compress))}
-            $entities=@(Invoke-RestMethod http://127.0.0.1:8765/api/v1/legal-entities -TimeoutSec 5)
-            if(@($entities | Where-Object {$_.name -like 'Recovery *'}).Count -ne 36){throw 'Recovered directory rows missing from real packaged API'}
+            $entities=Invoke-RestMethod http://127.0.0.1:8765/api/v1/legal-entities -TimeoutSec 5
+            $recovered=@($entities | Where-Object {$_.name -like 'Recovery *'}).Count
+            if($recovered -ne 36){throw ('Recovered directory rows missing from real packaged API. Count: '+$recovered+'. Response: '+($entities|ConvertTo-Json -Depth 5 -Compress))}
 
             $second = Join-Path $nas 'Factures\second.pdf'
             [IO.File]::WriteAllBytes($second,[Text.Encoding]::ASCII.GetBytes('%PDF-second'))
