@@ -28,4 +28,4 @@ try {
  if($state.status -ne 'complete' -or $state.percent -ne 100){throw 'Progress lost during a concurrent read'}
  if(@(Get-ChildItem $folder -Filter '*.tmp').Count){throw 'Temporary progress file leaked'}
  Write-Host 'PASS: atomic progress replacement waits for a concurrent reader and preserves the complete state.'
-} finally {Remove-Item $folder -Recurse -Force}
+} finally {if($reader){$reader.Wait()};Remove-Item $folder -Recurse -Force}
