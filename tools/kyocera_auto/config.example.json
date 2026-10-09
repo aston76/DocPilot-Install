@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "source_dir": "%USERPROFILE%\\SynologyDrive\\SCAN",
+  "state_dir": "%LOCALAPPDATA%\\DocPilot\\kyocera-auto",
+  "api_url": "http://127.0.0.1:8765",
+  "docpilot_db": "%LOCALAPPDATA%\\DocPilot\\docpilot.db",
+  "docpilot_exe": "%LOCALAPPDATA%\\Programs\\DocPilot\\DocPilot.exe",
+  "poll_seconds": 5,
+  "stable_seconds": 15
+}
