@@ -84,10 +84,12 @@ def normalize_devices(items):
  devices.sort(key=lambda d:(str(d.get('name','')).casefold(),d['id']))
  counts={}
  for device in devices:counts[device.get('name','Scanner')]=counts.get(device.get('name','Scanner'),0)+1
+ ordinals={}
  for device in devices:
   name=device.get('name','Scanner')
+  ordinals[name]=ordinals.get(name,0)+1
   suffix=str(device.get('connection') or device['id'][-12:])
-  device['label']=name+(' · '+suffix if counts[name]>1 else '')
+  device['label']=name+(' · '+suffix+' · connexion '+str(ordinals[name]) if counts[name]>1 else '')
  preferred=preference().get('default_device_id')
  if preferred not in unique:
   defaults=[device['id'] for device in devices if device.get('windows_default')]
