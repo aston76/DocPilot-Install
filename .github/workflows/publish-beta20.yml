@@ -202,6 +202,8 @@ jobs:
             ~/AppData/Local/DocPilot/installer-*.log
             ~/AppData/Local/DocPilot/native-*.log
             ~/AppData/Local/DocPilot/update-state.json
+            ~/AppData/Local/DocPilot/startup.log
+            ~/AppData/Local/DocPilot/runtime.log
           if-no-files-found: ignore
       - name: Publish complete release atomically
         if: github.event_name != 'pull_request'
