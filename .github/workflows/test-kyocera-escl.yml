@@ -1,0 +1,17 @@
+name: Test Kyocera eSCL prototype
+on:
+  pull_request:
+    paths: ['tools/kyocera_escl/**', '.github/workflows/test-kyocera-escl.yml']
+  push:
+    paths: ['tools/kyocera_escl/**', '.github/workflows/test-kyocera-escl.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tools/kyocera_escl -v
