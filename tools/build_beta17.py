@@ -49,7 +49,7 @@ replace={'DocPilot.exe':exe,'version.json':(json.dumps({'version':TAG})+'\n').en
 for name in ['web/index.html','web/assets/index-CEFd-v_U.js','web/assets/index-WlkB-kjt.css']:
     replace[name]=(SOURCES/name).read_bytes()
 for name in ['Discover-DocPilotArchive.ps1','Find-DocPilotNAS.ps1','DocPilot-Update.ps1','Install-DocPilot.ps1','Installer-DocPilot.ps1','Installer-DocPilot.cmd']:
-    replace[name]=(ROOT.parent/name).read_bytes()
+    replace[name]=((SOURCES/name) if name=='DocPilot-Update.ps1' else (ROOT.parent/name)).read_bytes()
 target=OUT/'DocPilot-Windows-portable.zip'
 with zipfile.ZipFile(BASE) as base,zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as result:
     for info in base.infolist():
