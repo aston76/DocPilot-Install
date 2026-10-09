@@ -7,3 +7,5 @@ Mode sombre anthracite, bordeaux et ivoire, sans l’ancien thème vert. Contras
 Le classement, les aperçus PDF, la correction, les modèles de noms, l’apprentissage des dossiers, les doublons et les suppressions restent disponibles. Les commandes techniques de synchronisation sont regroupées dans un volet. Le scanner préféré et le classement directement depuis le scanner de beta.18 sont conservés.
 
 La mise à jour conserve les données et profils. Les mécanismes des anciennes beta.12 et beta.14 peuvent échouer avant d’installer le correctif : exécuter alors une fois l’installateur PowerShell public du README. Aucun paquet ne peut réparer à distance un ancien updater qui ne parvient pas à l’installer. Le scanner physique nécessite un pilote WIA compatible ; aucune acquisition matérielle n’est prouvée par les tests GitHub.
+
+Après une installation réussie, une erreur de vérification GitHub est signalée séparément ; elle ne fait plus passer une relance réussie pour une installation échouée. L’application n’affirme pas disposer de la dernière version si cette vérification est indisponible.

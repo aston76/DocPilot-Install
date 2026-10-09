@@ -39,7 +39,7 @@ def _worker(install):
     try:
         release = latest_release()
         available = version_key(release['tag_name']) > version_key(VERSION)
-        _state.update(latest=release['tag_name'], available=available, status='available' if available else 'current', message='Une nouvelle version est disponible.' if available else 'Vous avez la dernière version.')
+        _state.update(check_error=None,verification_status='ok',latest=release['tag_name'], available=available, status='available' if available else 'current', message='Une nouvelle version est disponible.' if available else 'Vous avez la dernière version.')
         if install and available:
             script = Path(sys.executable).parent / 'DocPilot-Update.ps1'
             if not script.is_file():
@@ -47,7 +47,7 @@ def _worker(install):
             progress_path=Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'DocPilot'/'update-state.json'
             progress_path.parent.mkdir(parents=True,exist_ok=True)
             progress_path.write_text(json.dumps({'status':'starting','version':release['tag_name']}),encoding='utf-8')
-            _state.update(status='installing', message='La fenêtre de mise à jour va s’ouvrir…')
+            _state.update(status='installing', message='Installation en arrière-plan…')
             # The updater owns its native progress window and survives the API exit.
             process=subprocess.Popen(['powershell.exe','-STA','-NoProfile','-ExecutionPolicy','Bypass','-File',str(script),'-Mode','Update','-Restart'],
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)|getattr(subprocess,'CREATE_NEW_PROCESS_GROUP',0),
@@ -77,6 +77,20 @@ def update_status():
             value.update(phase=phase,percent=progress.get('percent'),message=progress.get('message',''))
         elif phase in ('complete','current') and progress.get('version')==VERSION:
             # The running binary is proof that installation and restart finished.
+            # Installation and the online check are separate results. A failed
+            # metadata lookup must not turn a proven successful restart into an
+            # installation error. Keep that lookup failure visible and retryable.
+            if value['status']=='current' and value.get('verification_status')=='error' and value.get('check_error') and not value.get('available'):
+                return value
+            if value['status']=='error' and not value.get('available'):
+                known=value.get('latest')
+                try: newer=bool(known and version_key(known)>version_key(VERSION))
+                except ValueError: newer=True
+                if not newer:
+                    failure=value.get('message') or 'Serveur indisponible'
+                    _state.update(status='current',available=False,verification_status='error',check_error=failure,
+                        message='Installation terminée · version '+VERSION+'. Vérification des nouvelles versions indisponible : '+failure+'. Vous pouvez réessayer.')
+                    return dict(_state)
             if (value['status'] in ('idle','current','complete') and not value.get('available')) or (value['status']=='installing' and value.get('latest')==VERSION):
                 _state.update(status='current',available=False,latest=VERSION,message='Vous avez la dernière version.')
                 value=dict(_state)
