@@ -1,4 +1,4 @@
-﻿# Installe ou met à jour le programme uniquement. Les données restent dans LOCALAPPDATA\DocPilot.
+﻿﻿# Installe ou met à jour le programme uniquement. Les données restent dans LOCALAPPDATA\DocPilot.
 function File-Sha256([string]$path) {
     $algorithm=[Security.Cryptography.SHA256]::Create()
     $stream=[IO.File]::OpenRead($path)
@@ -33,27 +33,51 @@ $parent=Split-Path $target -Parent
 New-Item -ItemType Directory -Force -Path $parent | Out-Null
 $stage=Join-Path $parent ('DocPilot-stage-'+[Guid]::NewGuid().ToString('N'))
 $backup=Join-Path $parent ('DocPilot-backup-'+[Guid]::NewGuid().ToString('N'))
-$swapped=$false
+$replaced=New-Object 'System.Collections.Generic.List[string]'
+function Move-ProgramFile([string]$from,[string]$to) {
+    for($attempt=0;$attempt -lt 40;$attempt++) {
+        try {Move-Item -LiteralPath $from -Destination $to -ErrorAction Stop;return}
+        catch {if($attempt -eq 39){throw};Start-Sleep -Milliseconds 250}
+    }
+}
 try {
     New-Item -ItemType Directory -Force -Path $stage | Out-Null
-    if(Test-Path -LiteralPath $target){
-        Get-ChildItem -LiteralPath $target -Force | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force}
-    }
     Get-ChildItem -LiteralPath $source -Force | Where-Object {$_.Name -ne 'Install-DocPilot.ps1'} | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force
     }
     $sourceHash=(File-Sha256 (Join-Path $source 'DocPilot.exe'))
     if((File-Sha256 (Join-Path $stage 'DocPilot.exe')) -ne $sourceHash){throw 'Vérification du programme échouée.'}
     if(-not (Test-Path -LiteralPath (Join-Path $stage 'web\index.html'))){throw 'Interface absente du paquet.'}
-    if(Test-Path -LiteralPath $target){Move-Item -LiteralPath $target -Destination $backup}
-    try {Move-Item -LiteralPath $stage -Destination $target;$swapped=$true} catch {
-        if(Test-Path -LiteralPath $backup){Move-Item -LiteralPath $backup -Destination $target}
-        throw
+    New-Item -ItemType Directory -Force -Path $target,$backup | Out-Null
+    # Keep the root directory stable: an old updater can still use it as its cwd.
+    # Replace only package files; unrelated private files remain untouched.
+    foreach($file in @(Get-ChildItem -LiteralPath $stage -Recurse -File -Force)) {
+        $relative=$file.FullName.Substring($stage.Length+1)
+        $destination=Join-Path $target $relative
+        $saved=Join-Path $backup $relative
+        New-Item -ItemType Directory -Force -Path (Split-Path $destination -Parent),(Split-Path $saved -Parent) | Out-Null
+        if(Test-Path -LiteralPath $destination){Move-ProgramFile $destination $saved}
+        $replaced.Add($relative)
+        Move-ProgramFile $file.FullName $destination
     }
+} catch {
+    $failure=$_
+    $rollbackFailed=$false
+    for($i=$replaced.Count-1;$i -ge 0;$i--) {
+        $relative=$replaced[$i];$destination=Join-Path $target $relative;$saved=Join-Path $backup $relative
+        try {
+            if(Test-Path -LiteralPath $destination){Remove-Item -LiteralPath $destination -Force}
+            if(Test-Path -LiteralPath $saved){Move-ProgramFile $saved $destination}
+        } catch {$rollbackFailed=$true;Write-Warning ('Restauration à terminer : '+$destination)}
+    }
+    if($rollbackFailed){throw ('Installation interrompue. Sauvegarde conservée dans '+$backup+'. '+$failure.Exception.Message)}
+    if(Test-Path -LiteralPath $backup){Remove-Item -LiteralPath $backup -Recurse -Force}
+    throw $failure
 } finally {
-    if(Test-Path -LiteralPath $stage){Remove-Item -LiteralPath $stage -Recurse -Force}
-    if($swapped -and (Test-Path -LiteralPath $backup)){Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue}
+    if(Test-Path -LiteralPath $stage){Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue}
 }
+if(Test-Path -LiteralPath $backup){Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue}
+
 try {
 $shell = New-Object -ComObject WScript.Shell
 $shortcutPaths = @(
