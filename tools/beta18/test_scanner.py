@@ -54,3 +54,10 @@ with TemporaryDirectory() as tmp:
  assert sc.preference()['default_device_id']=='right'
  assert client.post('/api/v1/scanner',json={'action':'probe','device':'right'},headers={'origin':'https://bad.invalid'}).status_code==403
 print('PASS: distinct connections, exact duplicate IDs removed, persistent preferred scanner, default fallback, connection checks and origin protection.')
+
+with TemporaryDirectory() as tmp:
+ sc.data_dir=lambda:Path(tmp)
+ entries=[{'id':'a-same-suffix','name':'MA3500','connection':'WSD'},{'id':'b-same-suffix','name':'MA3500','connection':'WSD'}]
+ devices,preferred=sc.normalize_devices(entries)
+ assert len({d['label'] for d in devices})==2, 'Same port descriptions must still have distinct visible labels'
+print('PASS: scanner labels remain distinct even when Windows reports identical ports.')
