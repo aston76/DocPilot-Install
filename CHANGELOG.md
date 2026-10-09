@@ -1,3 +1,7 @@
+## v0.1.0-beta.17
+
+Mises à jour silencieuses et état cohérent après installation. Correction du remplacement du programme lorsque son dossier est encore utilisé par un ancien processus. Répertoire stable, sauvegardes et restauration en cas d’échec ; données et fichiers privés conservés.
+
 # Beta.13 — index SQLite local et mise à jour visible
 
 - Migration automatique du cache SHA, recherche ciblée, index actualisé après classement.
