@@ -1,3 +1,7 @@
+## v0.1.0-beta.18
+
+Scanner préféré mémorisé, connexions distinguées et test WIA explicite. Facture numérisée et classement dans l’onglet Scanner. Modes clair/sombre/système persistants. Migration directe testée depuis les paquets Windows beta.12 et beta.14, avec conservation de la base et des fichiers privés ; chemin de secours pour les anciens updaters défaillants.
+
 ## v0.1.0-beta.17
 
 Mises à jour silencieuses et état cohérent après installation. Correction du remplacement du programme lorsque son dossier est encore utilisé par un ancien processus. Répertoire stable, sauvegardes et restauration en cas d’échec ; données et fichiers privés conservés.
