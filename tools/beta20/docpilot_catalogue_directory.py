@@ -8,7 +8,7 @@ from pathlib import Path
 
 _lock=threading.RLock()
 _state={'running':False,'status':'idle','message':'Récupération des noms des dossiers en attente.','discovered':0,'added':0}
-_checked=0
+_checked=float('-inf')
 
 def name_key(value):return ' '.join(unicodedata.normalize('NFKC',value).split()).casefold()
 
