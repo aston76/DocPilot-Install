@@ -1,4 +1,4 @@
-﻿﻿# Installe ou met à jour le programme uniquement. Les données restent dans LOCALAPPDATA\DocPilot.
+﻿# Installe ou met à jour le programme uniquement. Les données restent dans LOCALAPPDATA\DocPilot.
 function File-Sha256([string]$path) {
     $algorithm=[Security.Cryptography.SHA256]::Create()
     $stream=[IO.File]::OpenRead($path)
@@ -36,7 +36,7 @@ $backup=Join-Path $parent ('DocPilot-backup-'+[Guid]::NewGuid().ToString('N'))
 $replaced=New-Object 'System.Collections.Generic.List[string]'
 function Move-ProgramFile([string]$from,[string]$to) {
     for($attempt=0;$attempt -lt 40;$attempt++) {
-        try {Move-Item -LiteralPath $from -Destination $to -ErrorAction Stop;return}
+        try {[IO.File]::Move($from,$to);return}
         catch {if($attempt -eq 39){throw};Start-Sleep -Milliseconds 250}
     }
 }
@@ -55,7 +55,8 @@ try {
         $relative=$file.FullName.Substring($stage.Length+1)
         $destination=Join-Path $target $relative
         $saved=Join-Path $backup $relative
-        New-Item -ItemType Directory -Force -Path (Split-Path $destination -Parent),(Split-Path $saved -Parent) | Out-Null
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
+        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($saved))
         if(Test-Path -LiteralPath $destination){Move-ProgramFile $destination $saved}
         $replaced.Add($relative)
         Move-ProgramFile $file.FullName $destination
