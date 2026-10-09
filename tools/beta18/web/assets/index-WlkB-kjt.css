@@ -86,3 +86,9 @@
 :root[data-theme="dark"] .pilot-scanner-preview{background:white}
 @media(max-width:650px){.pilot-theme-switch{max-width:140px}.pilot-scanner-controls{align-items:stretch}.pilot-scanner-controls button{flex:1}.pilot-header{gap:10px}.pilot-scanner-preview{min-height:320px}}
 @media(prefers-reduced-motion:reduce){.pilot-app *{animation:none!important;transition:none!important}}
+
+:root[data-theme="dark"] :is(.pilot-review-card,.pilot-pdf-card,.pilot-filename-input){background:#182720;border-color:#355044;color:#e7f2ec}
+:root[data-theme="dark"] :is(.pilot-review-card,.pilot-pdf-card) :is(h2,h3,label,strong,summary){color:#e7f2ec}
+:root[data-theme="dark"] .pilot-review-intro{color:#b5cbbc}
+:root[data-theme="dark"] .pilot-review-card small{color:#b5cbbc}
+@media(max-width:700px){.pilot-nav{min-width:0;max-width:100%;width:100%;flex:1 1 100%;display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start}.pilot-nav button{height:40px}.pilot-header{padding-inline:16px}.pilot-scanner .pilot-detail-head{min-width:0}.pilot-scanner .pilot-detail-head h2{overflow-wrap:anywhere;min-width:0}}
