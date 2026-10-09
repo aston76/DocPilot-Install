@@ -1,0 +1,7 @@
+__pycache__/
+config.json
+state.sqlite3*
+status.json*
+status.html*
+bridge.log*
+*.tmp

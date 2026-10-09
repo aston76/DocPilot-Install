@@ -54,6 +54,13 @@ Le catalogue des destinations est partagé via les mêmes instantanés privés. 
 
 ## Factures oubliées sur le PC
 
+Pour importer automatiquement les nouveaux PDF créés par une application de scanner,
+voir l’[outil optionnel de liaison PDF → DocPilot](tools/kyocera_auto/README.md).
+Il conserve les originaux et affiche l’emplacement réel après classement, tout en
+laissant DocPilot contrôler les doublons et les lectures incertaines. Cet outil
+nécessite un environnement Python existant et n’est pas inclus dans les paquets
+publiés ; ses tests avec PDF fictifs ne remplacent pas un essai réel sur le poste.
+
 Dans « Sur ce PC », « Détecter les factures sur ce PC » lance une recherche locale en arrière-plan. Les dossiers NAS/Drive identifiés et dossiers système sont exclus. Les copies exactes connues du NAS et les documents déjà présents dans DocPilot sont signalés ; une vérification incomplète ne confirme pas l’absence de doublon. Les images/scans/Office incertains demandent une vérification. Aucun import ni nettoyage ne se fait sans action de l’utilisateur.
 
 « Retirer de la liste » garde le fichier. « Supprimer aussi du PC » demande confirmation, protège les archives et fichiers modifiés, et journalise l’utilisateur, la machine et le chemin. Cette suppression est définitive sur le PC ; elle n’efface pas le document archivé sur le NAS. Les fichiers uniquement en ligne ou de plus de 100 Mo ne sont pas lus ; les accès refusés et recherches limitées restent signalés.
