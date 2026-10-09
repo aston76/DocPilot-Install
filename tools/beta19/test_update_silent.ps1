@@ -20,5 +20,5 @@ while((Get-Date) -lt $deadline){
  } catch {}
  Start-Sleep -Milliseconds 500
 }
-if(-not $ready){throw 'Restarted application did not settle to current'}
+if(-not $ready){Write-Output ($status | ConvertTo-Json -Depth 5);throw 'Restarted application did not settle to current'}
 Write-Output 'PASS: silent installation, automatic restart, no repeated completion or install offer.'
