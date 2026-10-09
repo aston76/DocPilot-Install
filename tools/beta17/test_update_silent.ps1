@@ -1,5 +1,5 @@
 $ErrorActionPreference='Stop'
-$script=Resolve-Path 'DocPilot-Update.ps1'
+$script=Resolve-Path 'tools/beta17/DocPilot-Update.ps1'
 $archive=Resolve-Path 'release-package/DocPilot-Windows-portable.zip'
 $data=Join-Path $env:LOCALAPPDATA 'DocPilot'
 $statusFile=Join-Path $data 'update-state.json'

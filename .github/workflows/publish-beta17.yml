@@ -52,7 +52,7 @@ jobs:
       - name: Parse installer scripts and verify update UI protocol
         shell: pwsh
         run: |
-          foreach ($script in @('DocPilot-Update.ps1','Install-DocPilot.ps1','tools/beta17/test_update_window.ps1')) {
+          foreach ($script in @('tools/beta17/DocPilot-Update.ps1','Install-DocPilot.ps1','tools/beta17/test_update_window.ps1')) {
             $tokens=$null;$errors=$null
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script),[ref]$tokens,[ref]$errors)
             if($errors.Count){throw (($errors | ForEach-Object { $_.Message+' at line '+$_.Extent.StartLineNumber }) -join "`n")}
