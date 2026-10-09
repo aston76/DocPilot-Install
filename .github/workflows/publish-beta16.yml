@@ -2,9 +2,9 @@ name: Build and publish verified beta 16
 on:
   push:
     branches: [main]
-    paths: ['tools/beta16/**', 'tools/build_beta16.py', '.github/workflows/publish-beta16.yml']
+    paths: ['tools/beta16/**', 'DocPilot-Update.ps1', 'tools/build_beta16.py', '.github/workflows/publish-beta16.yml']
   pull_request:
-    paths: ['tools/beta16/**', 'tools/build_beta16.py', '.github/workflows/publish-beta16.yml']
+    paths: ['tools/beta16/**', 'DocPilot-Update.ps1', 'tools/build_beta16.py', '.github/workflows/publish-beta16.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +23,10 @@ jobs:
         run: |
           powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File tools/beta16/test_update_controls.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Native control lookup failed' }
+      - name: Verify progress survives a concurrent reader
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/beta16/test_progress_write.ps1
+          if($LASTEXITCODE -ne 0){throw 'Progress replacement test failed'}
       - name: Verify startup scan, progress and cache isolation
         run: |
           python tools/beta16/test_hash_store.py

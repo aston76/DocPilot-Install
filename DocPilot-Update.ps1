@@ -31,9 +31,21 @@ if ($ShowProgress) {
 }
 function Update-Progress([string]$phase,[string]$message,[Nullable[int]]$percent=$null) {
     $payload=@{status=$phase;message=$message;percent=$percent;version=$release.tag_name;updated_at=(Get-Date).ToUniversalTime().ToString('o');window_handle=$(if($form){$form.Handle.ToInt64()}else{$null})}
-    $temporary=$statusFile+'.tmp'
+    $temporary=$statusFile+'.'+[Guid]::NewGuid().ToString('N')+'.tmp'
     $payload | ConvertTo-Json | Set-Content -LiteralPath $temporary -Encoding UTF8
-    Move-Item -LiteralPath $temporary -Destination $statusFile -Force
+    # Readers may briefly hold the destination without delete-sharing. Replace
+    # atomically and retry that short-lived lock rather than failing installation.
+    try {
+        for($attempt=0;$attempt -lt 40;$attempt++){
+            try {
+                if([IO.File]::Exists($statusFile)){[IO.File]::Replace($temporary,$statusFile,$null)}else{[IO.File]::Move($temporary,$statusFile)}
+                break
+            } catch [IO.IOException] {
+                if($attempt -eq 39){throw}
+                Start-Sleep -Milliseconds 50
+            }
+        }
+    } finally {if([IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)}}
     if($form){
         $label.Text=$message
         if($null -eq $percent){$bar.Style='Marquee'}else{$bar.Style='Continuous';$bar.Value=[Math]::Min(100,[Math]::Max(0,$percent))}
