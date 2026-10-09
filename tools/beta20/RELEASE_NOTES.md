@@ -1,0 +1,9 @@
+# DocPilot v0.1.0-beta.20
+
+Aperçu scanner conservé pendant l’ajout d’une page et après l’analyse, même pour un doublon. La page acquise apparaît dès réception par le pilote ; DocPilot ne prétend pas afficher les lignes de numérisation avant que le pilote transmette l’image. Un aperçu propre à la numérisation reste disponible après l’import, indépendamment du fichier d’un ancien doublon. Retirer l’aperçu remet à zéro uniquement la session scanner ; la suppression d’une entrée passe par le bouton de retrait du document.
+
+« Aucune page reçue » remplace l’annulation supposée lorsqu’aucune image n’a été transmise. Les anciennes pages sont préservées, avec leur nombre. Les erreurs WIA indiquent le code et le contexte : hors ligne, communication, préchauffage, papier, capot ou occupation. Une deuxième tentative de connexion est faite avant acquisition ; aucun nouveau scan n’est lancé automatiquement après un échec d’acquisition. Le réveil matériel dépend du pilote et de la configuration Kyocera ; il n’est pas garanti.
+
+La liste Sociétés récupère les noms manquants dans les dossiers de l’archive vérifiée, automatiquement lors de son ouverture et de la réconciliation du catalogue, ainsi que depuis un bouton manuel. La liste montre toutes les lignes locales ; aucun plafond de six n’est appliqué. Les noms désactivés restent désactivés, les noms personnalisés et les données existantes sont conservés. Aucun document n’est lu pour cette récupération et aucun dossier NAS n’est créé. Le mapping métier Windows existant est préservé.
+
+Le thème bordeaux, le mode sombre, les workflows de classement et les protections d’installation de beta.19 sont conservés. Les tests logiciels ne constituent pas un test du scanner physique du bureau. Les anciens updaters bloqués avant téléchargement nécessitent toujours une première exécution de l’installateur PowerShell du README.
