@@ -5,6 +5,7 @@ ROOT=pathlib.Path(__file__).resolve().parent
 SOURCES=ROOT/'beta22'
 OUT=pathlib.Path('release-package22');OUT.mkdir(exist_ok=True)
 BASE=ROOT.parent/'release-package21/beta20.zip'
+BASE.parent.mkdir(parents=True,exist_ok=True)
 BASE_SHA='789d0b0bd6c6dd52d871e58685a5c4793a0105c4adc5fcc4e8df901e7b801f93'
 TAG='v0.1.0-beta.22'
 if not BASE.exists():
