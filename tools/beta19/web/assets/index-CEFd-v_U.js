@@ -757,11 +757,20 @@ const paths = {
   copy: "M8 8h13v13H8zM3 16V3h13",
   clock: "M12 6v6l4 2M21 12a9 9 0 11-18 0 9 9 0 0118 0"
 };
+function wineIdentity() {
+  try {
+    return localStorage.getItem("docpilot.actor_name")?.trim() || "";
+  } catch {
+    return "";
+  }
+}
 function WineIcon({ name }) {
   return /* @__PURE__ */ o.jsx("svg", { width: "23", height: "23", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: /* @__PURE__ */ o.jsx("path", { d: paths[name] || paths.documents }) });
 }
 export function WineShell({ page, section, docs, search, onSearch, navigate, controls, children, aiAvailable = false }) {
   const [open, setOpen] = N.useState(false);
+  const actor = wineIdentity();
+  const companyNames = Array.from(new Set(docs.map((d) => d.legal_entity_name).filter(Boolean)));
   const pending = docs.filter((d) => ["TO_VALIDATE", "ERROR", "DUPLICATE"].includes(d.status)).length;
   const go = (p, s, f) => {
     navigate(p, s, f);
@@ -862,11 +871,19 @@ export function WineShell({ page, section, docs, search, onSearch, navigate, con
           /* @__PURE__ */ o.jsx("input", { id: "wine-search", value: search, onChange: (e) => onSearch(e.target.value), placeholder: "Rechercher un document, un fournisseur\u2026", "aria-label": "Rechercher un document" }),
           /* @__PURE__ */ o.jsx("kbd", { children: "\u2318 K" })
         ] }),
+        /* @__PURE__ */ o.jsxs("select", { className: "wine-top-company", "aria-label": "Rechercher par soci\xE9t\xE9", value: companyNames.includes(search) ? search : "", onChange: (e) => {
+          onSearch(e.target.value);
+          go("documents", void 0, "all");
+        }, children: [
+          /* @__PURE__ */ o.jsx("option", { value: "", children: "Toutes les soci\xE9t\xE9s" }),
+          companyNames.map((name) => /* @__PURE__ */ o.jsx("option", { children: name }, name))
+        ] }),
         /* @__PURE__ */ o.jsxs("button", { className: "wine-notifications", onClick: () => go("documents", void 0, "attention"), "aria-label": pending + " documents \xE0 v\xE9rifier", children: [
           /* @__PURE__ */ o.jsx(WineIcon, { name: "bell" }),
           pending > 0 && /* @__PURE__ */ o.jsx("b", { className: "wine-badge", children: pending })
         ] }),
-        /* @__PURE__ */ o.jsx("div", { className: "wine-controls", children: controls })
+        /* @__PURE__ */ o.jsx("div", { className: "wine-controls", children: controls }),
+        /* @__PURE__ */ o.jsx("button", { className: "wine-avatar", onClick: () => go("settings", "system"), "aria-label": "Identit\xE9 de ce poste", title: actor || "Configurer votre nom", children: actor ? actor.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase() : "DP" })
       ] }),
       /* @__PURE__ */ o.jsx("main", { className: "pilot-main wine-main", children }, page + section)
     ] })
@@ -937,7 +954,11 @@ export function WineDashboard({ docs, navigate, onOpen, fetcher = fetch, storage
   return /* @__PURE__ */ o.jsxs("div", { className: "wine-dashboard", children: [
     /* @__PURE__ */ o.jsxs("section", { className: "wine-hero", children: [
       /* @__PURE__ */ o.jsx("span", { className: "wine-eyebrow", children: "VOTRE ESPACE DOCUMENTAIRE" }),
-      /* @__PURE__ */ o.jsx("h1", { children: "Bienvenue chez vous." }),
+      /* @__PURE__ */ o.jsxs("h1", { children: [
+        "Bonjour",
+        wineIdentity() ? " " + wineIdentity() : "",
+        ","
+      ] }),
       /* @__PURE__ */ o.jsx("p", { children: "Vos factures, au bon endroit." }),
       /* @__PURE__ */ o.jsx("blockquote", { children: "Moins de classement. Plus de temps pour vous." }),
       /* @__PURE__ */ o.jsxs("div", { className: "wine-hero-signature", "aria-hidden": "true", children: [
