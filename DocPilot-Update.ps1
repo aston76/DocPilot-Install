@@ -40,7 +40,7 @@ function Update-Progress([string]$phase,[string]$message,[Nullable[int]]$percent
             try {
                 if([IO.File]::Exists($statusFile)){[IO.File]::Replace($temporary,$statusFile,$null)}else{[IO.File]::Move($temporary,$statusFile)}
                 break
-            } catch [IO.IOException] {
+            } catch [IO.IOException], [UnauthorizedAccessException] {
                 if($attempt -eq 39){throw}
                 Start-Sleep -Milliseconds 50
             }
