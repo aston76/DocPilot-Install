@@ -59,8 +59,11 @@ jobs:
               }
               try{
                 $version=Invoke-RestMethod 'http://127.0.0.1:8765/api/v1/system/update' -TimeoutSec 2
+                if($i % 20 -eq 0){Write-Output ('Update status: '+($version|ConvertTo-Json -Compress))}
+                if($version.status -eq 'error'){Write-Error ('Legacy update failed: '+$version.message) -ErrorAction Stop}
                 if($version.current -eq 'v0.1.0-beta.18' -and $version.status -eq 'current' -and -not $version.available){$ready=$true;break}
-              }catch{}
+              }catch{if($_.Exception.Message -like '*Legacy update failed:*'){throw}}
+              if($i % 20 -eq 0 -and $state){Write-Output ('Durable status: '+($state|ConvertTo-Json -Compress))}
               Start-Sleep -Seconds 1
             }
             if(-not $ready){throw 'Actual beta 14 did not automatically upgrade to beta 18'}
