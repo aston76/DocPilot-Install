@@ -52,7 +52,15 @@ try {
    $running=@(Get-Process DocPilot -ErrorAction SilentlyContinue | Where-Object {$_.Path -eq (Join-Path $target 'DocPilot.exe')})
    if(-not $running.Count){break};Start-Sleep -Seconds 1
   }
-  if($running.Count){throw 'Legacy application did not close gracefully'}
+  if($running.Count){
+   Write-Output ('Legacy version: '+$case.version+'; processes: '+(($running|Select-Object Id,ProcessName,Path,Responding)|ConvertTo-Json -Compress))
+   foreach($log in @('startup.log','runtime.log')){
+    $path=Join-Path $data $log
+    if(Test-Path $path){Write-Output ('Shutdown diagnostics: '+$log);Get-Content $path -Tail 50}
+   }
+   try{Write-Output ('API still responding: '+((Invoke-RestMethod 'http://127.0.0.1:8765/api/v1/health' -TimeoutSec 2)|ConvertTo-Json -Compress))}catch{Write-Output 'API no longer responds'}
+   throw 'Legacy application did not close gracefully'
+  }
   Push-Location $target
   try {
    if($case.version -eq 'v0.1.0-beta.14'){
