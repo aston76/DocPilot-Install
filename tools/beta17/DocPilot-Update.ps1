@@ -1,4 +1,4 @@
-﻿﻿param([ValidateSet('Install','Update')][string]$Mode='Install',[switch]$Restart,[string]$PortableArchive,[switch]$ShowProgress)
+﻿param([ValidateSet('Install','Update')][string]$Mode='Install',[switch]$Restart,[string]$PortableArchive,[switch]$ShowProgress)
 function File-Sha256([string]$path) {
     $algorithm=[Security.Cryptography.SHA256]::Create()
     $stream=[IO.File]::OpenRead($path)
