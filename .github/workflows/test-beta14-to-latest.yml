@@ -1,0 +1,83 @@
+name: Verify actual beta 14 automatic upgrade
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upgrade:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install checksum-verified beta 14
+        shell: pwsh
+        run: |
+          $folder=Join-Path $env:RUNNER_TEMP 'actual-beta14'
+          New-Item -ItemType Directory -Path $folder | Out-Null
+          $zip=Join-Path $folder 'old.zip'
+          Invoke-WebRequest https://github.com/aston76/DocPilot-Install/releases/download/v0.1.0-beta.14/DocPilot-Windows-portable.zip -OutFile $zip
+          if((Get-FileHash $zip).Hash.ToLowerInvariant() -ne 'eb1a7d8bc26d7e5bb92731b835e50bd41d1a9339d9e0eb203790380c27292af8'){throw 'Wrong legacy package'}
+          Expand-Archive $zip (Join-Path $folder 'files')
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $folder 'files/Install-DocPilot.ps1')
+          if($LASTEXITCODE -ne 0){throw 'Old installation failed'}
+          $target=Join-Path $env:LOCALAPPDATA 'Programs/DocPilot'
+          if((Get-Content (Join-Path $target 'version.json') -Raw|ConvertFrom-Json).version -ne 'v0.1.0-beta.14'){throw 'Wrong starting version'}
+          'preserve-private-profile' | Set-Content (Join-Path $target 'automatic-profile-sentinel.txt')
+          $data=Join-Path $env:LOCALAPPDATA 'DocPilot';New-Item -ItemType Directory -Force -Path $data | Out-Null
+          'preserve-local-data' | Set-Content (Join-Path $data 'automatic-data-sentinel.txt')
+      - name: Opening beta 14 downloads, installs and restarts beta 18
+        shell: pwsh
+        run: |
+          Add-Type @'
+          using System;
+          using System.Runtime.InteropServices;
+          public class LegacyWindow {
+            [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
+            [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string cls,string title);
+            [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd);
+            [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd,uint msg,IntPtr w,IntPtr l);
+          }
+          '@
+          $target=Join-Path $env:LOCALAPPDATA 'Programs/DocPilot'
+          $exe=Join-Path $target 'DocPilot.exe'
+          $data=Join-Path $env:LOCALAPPDATA 'DocPilot'
+          $old=Start-Process $exe -WorkingDirectory $target -PassThru -WindowStyle Hidden
+          $null=$old.Handle
+          try {
+            $ready=$false;$clicked=$false
+            for($i=0;$i -lt 720;$i++){
+              $state=$null
+              try{$state=Get-Content (Join-Path $data 'update-state.json') -Raw|ConvertFrom-Json}catch{}
+              if($state.status -eq 'error'){throw $state.message}
+              # Existing beta.14 asks for OK in its native dialog once.
+              if($state.status -eq 'complete' -and -not $clicked){
+                $window=[LegacyWindow]::FindWindow($null,'Mise à jour de DocPilot')
+                $button=[LegacyWindow]::FindWindowEx($window,[IntPtr]::Zero,$null,'OK')
+                if($button -ne [IntPtr]::Zero -and [LegacyWindow]::IsWindowEnabled($button)){
+                  [void][LegacyWindow]::SendMessage($button,0xF5,[IntPtr]::Zero,[IntPtr]::Zero);$clicked=$true
+                }
+              }
+              try{
+                $version=Invoke-RestMethod 'http://127.0.0.1:8765/api/v1/system/update' -TimeoutSec 2
+                if($version.current -eq 'v0.1.0-beta.18' -and $version.status -eq 'current' -and -not $version.available){$ready=$true;break}
+              }catch{}
+              Start-Sleep -Seconds 1
+            }
+            if(-not $ready){throw 'Actual beta 14 did not automatically upgrade to beta 18'}
+            if(-not $old.HasExited){throw 'Old program still running'}
+            if((Get-Content (Join-Path $target 'version.json') -Raw|ConvertFrom-Json).version -ne 'v0.1.0-beta.18'){throw 'Wrong installed marker'}
+            if((Get-Content (Join-Path $data 'automatic-data-sentinel.txt')).Trim() -ne 'preserve-local-data'){throw 'Data lost'}
+            if((Get-Content (Join-Path $target 'automatic-profile-sentinel.txt')).Trim() -ne 'preserve-private-profile'){throw 'Private profile lost'}
+            Write-Output 'PASS: real published beta.14 opened, downloaded beta.18 from GitHub, installed it, restarted and settled to current with private files preserved.'
+          } finally {
+            Get-Process DocPilot -ErrorAction SilentlyContinue | Where-Object {$_.Path -eq $exe} | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+      - name: Keep automatic upgrade diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: actual-beta14-upgrade-diagnostics
+          path: |
+            C:/Users/runneradmin/AppData/Local/DocPilot/*.log
+            C:/Users/runneradmin/AppData/Local/DocPilot/update-state.json
+          if-no-files-found: ignore
