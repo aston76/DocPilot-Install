@@ -77,7 +77,7 @@ def update_status():
             value.update(phase=phase,percent=progress.get('percent'),message=progress.get('message',''))
         elif phase in ('complete','current') and progress.get('version')==VERSION:
             # The running binary is proof that installation and restart finished.
-            if (value['status'] not in ('checking','installing') and not value.get('available')) or (value['status']=='installing' and value.get('latest')==VERSION):
+            if (value['status'] in ('idle','current','complete') and not value.get('available')) or (value['status']=='installing' and value.get('latest')==VERSION):
                 _state.update(status='current',available=False,latest=VERSION,message='Vous avez la dernière version.')
                 value=dict(_state)
         elif value['status']=='installing' and phase=='complete':
