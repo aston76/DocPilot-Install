@@ -77,3 +77,11 @@ with tempfile.TemporaryDirectory() as temporary:
     update._state.update(status='checking',available=False)
     assert update.update_status()['status']=='checking'
 print('PASS: old completion cannot hide a future release or interrupt its check.')
+
+with tempfile.TemporaryDirectory() as temporary:
+    os.environ['LOCALAPPDATA']=temporary
+    path=pathlib.Path(temporary)/'DocPilot/update-state.json';path.parent.mkdir()
+    path.write_text(json.dumps({'status':'complete','version':update.VERSION}))
+    update._state.update(status='error',available=False,message='Offline')
+    assert update.update_status()['status']=='error', 'Old completion must not mask verification failures'
+print('PASS: last successful installation cannot hide a new update error.')
