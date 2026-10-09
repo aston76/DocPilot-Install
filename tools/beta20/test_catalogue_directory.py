@@ -3,10 +3,12 @@ import sys,types,tempfile,importlib.util,time
 from pathlib import Path
 from sqlalchemy import create_engine,select,String,Boolean
 from sqlalchemy.orm import DeclarativeBase,Mapped,mapped_column,sessionmaker
+from sqlalchemy.pool import NullPool
 from fastapi import FastAPI,HTTPException
 from fastapi.testclient import TestClient
 sys.path.insert(0,str(Path(__file__).parent))
 import docpilot_catalogue_directory as recovery
+assert recovery._checked==float('-inf'),'First recovery must run even on a freshly booted Windows runner'
 class Base(DeclarativeBase):pass
 class LegalEntity(Base):
     __tablename__='legal_entities'
@@ -27,7 +29,7 @@ with tempfile.TemporaryDirectory() as temporary:
     root=base/'Company'/w.LEAF
     (root/'Contrats'/'Contract Only').mkdir(parents=True)
     for number in range(36):(root/'Factures'/f'Supplier {number:02}'/'2026').mkdir(parents=True)
-    engine=create_engine('sqlite:///'+str(base/'test.db'),connect_args={'check_same_thread':False})
+    engine=create_engine('sqlite:///'+str(base/'test.db'),connect_args={'check_same_thread':False},poolclass=NullPool)
     Base.metadata.create_all(engine);factory=sessionmaker(engine)
     def get_session():
         with factory() as session:yield session

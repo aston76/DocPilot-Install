@@ -154,14 +154,14 @@ def snapshot():
   folder=data_dir()/(_state['session'] or 'none')
   pdf=(folder/'facture.pdf').is_file()
   image=(folder/'preview.jpg').is_file()
-  kind='image' if image and (_state['status'] in ('preparing','error') or not pdf) else 'pdf'
+  kind='image' if image and (_state.get('preview_pending') or not pdf) else 'pdf'
   return dict(_state,supported=supported(),pdf_available=pdf,preview_available=pdf or image,preview_kind=kind)
 
 def reset():
  with _lock:
   if _state['running']:raise ValueError('Attendez la fin de la numérisation avant de recommencer.')
   if _state['session']:shutil.rmtree(data_dir()/_state['session'],ignore_errors=True)
-  _state.update(status='idle',message='Prêt pour une nouvelle facture.',pages=0,session=None,preview_version=0)
+  _state.update(status='idle',message='Prêt pour une nouvelle facture.',pages=0,session=None,preview_version=0,preview_pending=False)
 
 def worker(device):
  folder=None
@@ -171,7 +171,13 @@ def worker(device):
    folder=data_dir()/session;folder.mkdir(parents=True,exist_ok=True)
    _state['session']=session
   page=folder/'page.png';page.unlink(missing_ok=True)
-  result=bridge('scan',folder,device)
+  warning=None
+  try:result=bridge('scan',folder,device)
+  except (ValueError,OSError) as error:
+   if not page.is_file() or not page.stat().st_size:raise
+   # A driver may fail reading metadata after SaveFile. The valid image, not
+   # its final status, proves acquisition. Decode it before keeping anything.
+   warning=str(error);result={'dpi':300}
   if result.get('cancelled') and not (page.is_file() and page.stat().st_size):
    with _lock:
     pages=_state['pages']
@@ -186,7 +192,7 @@ def worker(device):
   staged_preview=folder/'preview.tmp';staged_preview.write_bytes(jpeg)
   with _lock:
    staged_preview.replace(folder/'preview.jpg')
-   _state.update(status='preparing',message='Page reçue. Préparation du PDF…',preview_version=_state.get('preview_version',0)+1)
+   _state.update(status='preparing',message='Page reçue. Préparation du PDF…',preview_pending=True,preview_version=_state.get('preview_version',0)+1)
   dpi=result.get('dpi',300)
   if not isinstance(dpi,(int,float)) or not 50<=dpi<=1200:dpi=300
   existing=folder/'facture.pdf'
@@ -201,14 +207,15 @@ def worker(device):
   with _lock:staged.replace(existing)
   try:remember(device)
   except OSError:pass
-  with _lock:_state.update(status='ready',message='Facture numérisée. Ajoutez une page ou classez-la ici.',pages=pages,session=session)
+  with _lock:_state.update(status='ready',message='Page reçue et PDF prêt. Le pilote a ensuite signalé : '+warning if warning else 'Facture numérisée. Ajoutez une page ou classez-la ici.',pages=pages,session=session,preview_pending=False)
  except (ValueError,OSError,RuntimeError) as error:
   with _lock:_state.update(status='error',message=str(error))
  except Exception:
   with _lock:_state.update(status='error',message='Numérisation impossible. Vérifiez le scanner puis réessayez.')
  finally:
   if folder:
-   (folder/'page.png').unlink(missing_ok=True)
+   try:(folder/'page.png').unlink(missing_ok=True)
+   except OSError:pass
    with _lock:
     keep=(folder/'facture.pdf').is_file() or (folder/'preview.jpg').is_file()
     if not keep:_state.update(session=None)
@@ -220,7 +227,7 @@ def start(device):
  if not isinstance(device,str) or not device.strip() or len(device)>1024:raise ValueError('Choisissez un scanner.')
  with _lock:
   if _state['running'] or _state.get('probing'):raise ValueError('Le scanner est déjà occupé. Attendez la fin du test ou de la numérisation.')
-  _state.update(running=True,status='scanning',message='Numérisation en cours. L’aperçu apparaît dès que le scanner transmet la page.')
+  _state.update(running=True,status='scanning',preview_pending=False,message='Numérisation en cours. L’aperçu apparaît dès que le scanner transmet la page.')
   threading.Thread(target=worker,args=(device,),daemon=True,name='invoice-scanner').start()
 
 def install(app):

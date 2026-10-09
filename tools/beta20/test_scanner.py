@@ -32,6 +32,7 @@ with TemporaryDirectory() as tmp:
  sc._state['running']=False
  def failure(*args,**kwargs):raise ValueError('Scanner disconnected')
  sc.bridge=failure;sc.worker('test');assert sc.snapshot()['status']=='error' and sc.snapshot()['pages']==2 and sc.snapshot()['pdf_available']
+ assert sc.snapshot()['preview_kind']=='pdf','Connection failure must preserve the full multipage PDF preview'
  sc._state['running']=True;assert client.post('/api/v1/system/quit',json={'quit':True}).status_code==409;assert client.post('/api/v1/scanner',json={'action':'reset'}).status_code==409;sc._state['running']=False
  assert client.post('/api/v1/scanner',json={'action':'reset'}).status_code==200
  assert client.get('/api/v1/scanner/pdf').status_code==404
@@ -46,10 +47,17 @@ with TemporaryDirectory() as tmp:
  assert client.get('/api/v1/scanner/preview').status_code==200
  assert client.get('/api/v1/scanner/preview',headers={'origin':'https://bad.invalid'}).status_code==403
  # A received raster is visible before PDF completion, without consuming it.
- sc._state.update(status='preparing',running=True)
+ sc._state.update(status='preparing',running=True,preview_pending=True)
  received=client.get('/api/v1/scanner/preview');assert received.status_code==200 and received.headers['content-type']=='image/jpeg'
- sc._state.update(status='ready',running=False)
+ sc._state.update(status='ready',running=False,preview_pending=False)
  assert client.get('/api/v1/scanner/preview').headers['cache-control']=='no-store'
+ sc.reset()
+ def metadata_failure(action,folder,device=None):
+  fixture(action,folder,device);raise ValueError('Driver metadata failure after acquisition')
+ sc.bridge=metadata_failure;sc.worker('test')
+ assert sc.snapshot()['pages']==1 and sc.snapshot()['pdf_available'] and sc.snapshot()['preview_kind']=='pdf'
+ assert 'ensuite signalé' in sc.snapshot()['message']
+ assert client.get('/api/v1/scanner/preview').status_code==200
  sc.reset()
  print('PASS: local scanner listing, origin protection, compressed multipage PDF, physical page sizing, cancel/error preservation, reset protection and isolated cleanup')
 
