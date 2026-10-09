@@ -34,6 +34,7 @@ jobs:
           public class LegacyWindow {
             [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
             [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string cls,string title);
+            public static IntPtr FindOkButton(IntPtr parent) { return FindWindowEx(parent,IntPtr.Zero,null,"OK"); }
             [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd);
             [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd,uint msg,IntPtr w,IntPtr l);
           }
@@ -51,8 +52,8 @@ jobs:
               if($state.status -eq 'error'){throw $state.message}
               # Existing beta.14 asks for OK in its native dialog once.
               if($state.status -eq 'complete' -and -not $clicked){
-                $window=[LegacyWindow]::FindWindow($null,'Mise à jour de DocPilot')
-                $button=[LegacyWindow]::FindWindowEx($window,[IntPtr]::Zero,$null,'OK')
+                $window=[IntPtr]$state.window_handle
+                $button=[LegacyWindow]::FindOkButton($window)
                 if($button -ne [IntPtr]::Zero -and [LegacyWindow]::IsWindowEnabled($button)){
                   [void][LegacyWindow]::SendMessage($button,0xF5,[IntPtr]::Zero,[IntPtr]::Zero);$clicked=$true
                 }
