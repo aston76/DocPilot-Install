@@ -124,7 +124,7 @@ jobs:
               if ($sha.phase -eq 'complete') { break }
               Start-Sleep -Seconds 1
             }
-            if ($sha.phase -ne 'complete' -or $sha.indexed_files -ne 1 -or $sha.percent -ne 100) { throw 'Automatic SHA scan failed after workspace verification' }
+            if ($sha.phase -ne 'complete' -or $sha.indexed_files -ne 1 -or $sha.percent -ne 100) { throw ('Automatic SHA scan failed after workspace verification: '+($sha | ConvertTo-Json -Depth 6 -Compress)) }
             if ((Get-FileHash $file -Algorithm SHA256).Hash -ne $expected) { throw 'SHA scan changed an archive file' }
             for($n=0;$n -lt 36;$n++){New-Item -ItemType Directory -Path (Join-Path $nas ('Factures\Recovery '+$n+'\2026')) -Force | Out-Null}
             Invoke-RestMethod http://127.0.0.1:8765/api/v1/catalogue-directory -Method Post -TimeoutSec 5 | Out-Null
