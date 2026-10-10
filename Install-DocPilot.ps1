@@ -89,17 +89,25 @@ try {
     if((File-Sha256 (Join-Path $stage 'DocPilot.exe')) -ne $sourceHash){throw 'Vérification du programme échouée.'}
     if(-not (Test-Path -LiteralPath (Join-Path $stage 'web\index.html'))){throw 'Interface absente du paquet.'}
     New-Item -ItemType Directory -Force -Path $target,$backup | Out-Null
+    $files=@(Get-ChildItem -LiteralPath $stage -Recurse -File -Force | Sort-Object FullName)
+    $plan=New-Object 'System.Collections.Generic.List[object]'
     # Reject existing locks before changing any file. Atomic replacement remains the final guard.
-    foreach($file in @(Get-ChildItem -LiteralPath $stage -Recurse -File -Force | Sort-Object FullName)) {
+    foreach($file in $files) {
         $destination=Join-Path $target $file.FullName.Substring($stage.Length+1)
-        if(Test-Path -LiteralPath $destination) {
+        $existed=Test-Path -LiteralPath $destination
+        $plan.Add([pscustomobject]@{path=$file.FullName.Substring($stage.Length+1);existed=$existed;order=$plan.Count})
+        if($existed) {
             Invoke-FileOperation { $handle=[IO.File]::Open($destination,'Open','ReadWrite','None');$handle.Dispose() }
         }
     }
     if(@(Get-InstalledProcesses).Count -gt 0){throw 'DocPilot a redémarré. Aucun fichier remplacé.'}
+    # Persist the complete plan once: the package contains thousands of files.
+    # A saved file proves that its atomic replacement committed; otherwise old files stay untouched.
+    ConvertTo-Json -InputObject @($plan.ToArray()) | Set-Content -LiteralPath (Join-Path $backup 'recovery.json') -Encoding UTF8
+    Write-Host ('Remplacement de '+$files.Count+' fichiers du programme...')
     # Keep the root directory stable: an old updater can still use it as its cwd.
     # Replace only package files; unrelated private files remain untouched.
-    foreach($file in @(Get-ChildItem -LiteralPath $stage -Recurse -File -Force | Sort-Object FullName)) {
+    foreach($file in $files) {
         $relative=$file.FullName.Substring($stage.Length+1)
         $destination=Join-Path $target $relative
         $saved=Join-Path $backup $relative
@@ -107,12 +115,6 @@ try {
         [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($saved))
         $existed=Test-Path -LiteralPath $destination
         $replaced.Add([pscustomobject]@{path=$relative;existed=$existed;order=$replaced.Count})
-        # Persist before mutation so a later invocation can finish interrupted rollback.
-        $journalPath=Join-Path $backup 'recovery.json'
-        $journalTemp=Join-Path $backup 'recovery.tmp'
-        ConvertTo-Json -InputObject @($replaced.ToArray()) | Set-Content -LiteralPath $journalTemp -Encoding UTF8
-        if(Test-Path -LiteralPath $journalPath){[IO.File]::Replace($journalTemp,$journalPath,[NullString]::Value)}
-        else {[IO.File]::Move($journalTemp,$journalPath)}
         Invoke-FileOperation {
             if($existed){[IO.File]::Replace($file.FullName,$destination,$saved)}
             else {[IO.File]::Move($file.FullName,$destination)}

@@ -55,6 +55,7 @@ jobs:
             if ($page.StatusCode -ne 200 -or $page.Content -notmatch 'DocPilot') { throw 'Interface inaccessible' }
           } finally { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
       - name: Verify update preserves data and closes the old app
+        timeout-minutes: 12
         shell: pwsh
         run: |
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
