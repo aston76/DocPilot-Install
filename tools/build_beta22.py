@@ -43,7 +43,7 @@ for name,blob,raw,flag,kind in entries:
  toc_out.extend(struct.pack('!iIIIBc',18+len(name),len(payload),len(blob),raw,flag,kind)+name);payload.extend(blob)
 exe=data[:start]+payload+toc_out+struct.pack('!8sIIII64s',magic,len(payload)+len(toc_out)+88,len(payload),len(toc_out),version,library)+data[cookie+88:]
 (OUT/'DocPilot.exe').write_bytes(exe)
-replace={'DocPilot.exe':exe,'version.json':(json.dumps({'version':TAG})+'\n').encode()}
+replace={'Install-DocPilot.ps1':(ROOT.parent/'Install-DocPilot.ps1').read_bytes(),'DocPilot.exe':exe,'version.json':(json.dumps({'version':TAG})+'\n').encode()}
 asset='web/assets/index-CEFd-v_U.js'
 with zipfile.ZipFile(BASE) as base:frontend=base.read(asset).decode('utf-8').replace('\r\n','\n')
 old=(ROOT/'beta20/scanner_ui.js').read_text(encoding='utf-8').replace('export function','function',1).strip()
@@ -58,8 +58,9 @@ with zipfile.ZipFile(BASE) as base,zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLAT
 forbidden={'escl-connections.json','archive-catalogue.json','archive-companies.json','docpilot.db','profile.sql','root-path.txt'}
 with zipfile.ZipFile(target) as result:
  assert result.testzip() is None
+ for name,blob in replace.items():assert result.read(name)==blob, name
  assert not any(pathlib.PurePosixPath(n).name in forbidden or n.endswith(('.der','.dpapi','.log')) or n.startswith('scanner/certificates/') for n in result.namelist())
 sha=hashlib.file_digest(target.open('rb'),'sha256').hexdigest()
 (OUT/(target.name+'.sha256')).write_text(sha+'  '+target.name+'\n',encoding='ascii')
-(OUT/'verification.json').write_text(json.dumps({'tag':TAG,'sha256':sha,'bytes':target.stat().st_size,'modified_modules':changed,'private_files_excluded':True},indent=2),encoding='utf-8')
+(OUT/'verification.json').write_text(json.dumps({'tag':TAG,'sha256':sha,'bytes':target.stat().st_size,'modified_modules':changed,'private_files_excluded':True,'installer_sha256':hashlib.sha256(replace['Install-DocPilot.ps1']).hexdigest()},indent=2),encoding='utf-8')
 print(json.dumps({'tag':TAG,'sha256':sha,'bytes':target.stat().st_size}),flush=True)
