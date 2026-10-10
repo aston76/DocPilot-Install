@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+  pull_request:
+    paths: ['Install-DocPilot.ps1', 'tools/test_installer_transaction.ps1', 'tools/build_beta21.py', 'tools/build_beta22.py', '.github/workflows/test-installer.yml']
+
+permissions:
+  contents: read
 
 jobs:
   install:
@@ -11,6 +16,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Verify transactional installer with synthetic locked files
+        shell: powershell
+        run: ./tools/test_installer_transaction.ps1
       - name: Download and install with public PowerShell script
         shell: pwsh
         run: ./install.ps1
@@ -52,11 +60,22 @@ jobs:
           $exe = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
           $process = Start-Process $exe -PassThru -WindowStyle Hidden
           try {
+            $health = $null
             for ($i = 0; $i -lt 60; $i++) {
               try { $health = Invoke-RestMethod http://127.0.0.1:8765/api/v1/health -TimeoutSec 2; break } catch { Start-Sleep -Seconds 1 }
             }
+            if (-not $health -or $health.status -ne 'ok') { throw 'Old app did not become healthy' }
             $entity = Invoke-RestMethod http://127.0.0.1:8765/api/v1/legal-entities -Method Post -ContentType 'application/json' -Body '{"name":"Upgrade test entity","identifiers":[]}'
-            ./install.ps1
+            # Exercise the candidate installer against the installed public package.
+            $candidate = Join-Path $env:TEMP ('DocPilot-candidate-'+[Guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory $candidate | Out-Null
+            Copy-Item (Join-Path (Split-Path $exe) '*') $candidate -Recurse -Force
+            Copy-Item ./Install-DocPilot.ps1 $candidate -Force
+            try {
+              & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $candidate 'Install-DocPilot.ps1')
+              if ($LASTEXITCODE -ne 0) { throw 'Candidate reinstall failed' }
+            } finally { Remove-Item $candidate -Recurse -Force }
+            $process.Refresh()
             if (-not $process.HasExited) { throw 'Old app was not closed before updating' }
             $updated = Start-Process $exe -PassThru -WindowStyle Hidden
             try {

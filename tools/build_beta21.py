@@ -42,7 +42,7 @@ for name,blob,raw,flag,kind in entries:
  toc_out.extend(struct.pack('!iIIIBc',18+len(name),len(payload),len(blob),raw,flag,kind)+name);payload.extend(blob)
 exe=data[:start]+payload+toc_out+struct.pack('!8sIIII64s',magic,len(payload)+len(toc_out)+88,len(payload),len(toc_out),version,library)+data[cookie+88:]
 (OUT/'DocPilot.exe').write_bytes(exe)
-replace={'DocPilot.exe':exe,'version.json':(json.dumps({'version':TAG})+'\n').encode()}
+replace={'Install-DocPilot.ps1':(ROOT.parent/'Install-DocPilot.ps1').read_bytes(),'DocPilot.exe':exe,'version.json':(json.dumps({'version':TAG})+'\n').encode()}
 asset='web/assets/index-CEFd-v_U.js'
 with zipfile.ZipFile(BASE) as base:frontend=base.read(asset).decode('utf-8').replace('\r\n','\n')
 old=(ROOT/'beta20/scanner_ui.js').read_text(encoding='utf-8').replace('export function','function',1).strip()
