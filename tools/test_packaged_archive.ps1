@@ -47,7 +47,21 @@ for($i=0;$i -lt 30;$i++){
 }
 if(-not $found){throw 'Native change notification did not index the new file'}
 if(-not (Test-Path (Join-Path $nas 'DocPilot-Partage\v1'))){throw 'Shared index not published'}
-    Write-Host ('PASS: packaged initial SHA, unchanged archive bytes, catalogue recovery, live file notification, shared index: '+($sha | ConvertTo-Json -Depth 6 -Compress))
+    Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/quit -Method Post -ContentType 'application/json' -Body '{"quit":true}' -TimeoutSec 10 | Out-Null
+    $closed=$false
+    for($i=0;$i -lt 90;$i++) {
+        if(@(Get-CimInstance Win32_Process -Filter "Name = 'DocPilot.exe'" | Where-Object {$_.ExecutablePath -eq (Join-Path $Candidate 'DocPilot.exe')}).Count -eq 0){$closed=$true;break}
+        Start-Sleep -Seconds 1
+    }
+    if(-not $closed){throw 'Current candidate did not close before restart verification'}
+    $process=Start-Process (Join-Path $Candidate 'DocPilot.exe') -WorkingDirectory $Candidate -PassThru -WindowStyle Hidden
+    $completed=$false
+    for($i=0;$i -lt 60;$i++){
+        try {$sha=Invoke-RestMethod http://127.0.0.1:8765/api/v1/archive/sha256 -TimeoutSec 2;if($sha.phase -eq 'complete' -and $sha.indexed_files -eq 2){$completed=$true;break}}catch{}
+        Start-Sleep -Seconds 1
+    }
+    if(-not $completed){throw ('Packaged SHA index did not recover on a fresh process: '+($sha|ConvertTo-Json -Depth 6 -Compress))}
+    Write-Host ('PASS: packaged initial SHA, unchanged archive bytes, catalogue recovery, live file notification, shared index and fresh-process recovery: '+($sha | ConvertTo-Json -Depth 6 -Compress))
 } finally {
     try {Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/quit -Method Post -ContentType 'application/json' -Body '{"quit":true}' -TimeoutSec 10 | Out-Null}catch{}
     Start-Sleep -Seconds 2
