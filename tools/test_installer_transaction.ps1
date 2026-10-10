@@ -71,7 +71,17 @@ try {
     & $installer -RecoverBackup $backup
     Assert ((Get-Content (Join-Path $target 'DocPilot.exe') -Raw).Trim() -eq 'old-executable') 'Recovery failed'
     Assert (-not (Test-Path $backup)) 'Completed recovery left backup'
-    Write-Host 'PASS: lock preflight, atomic replacement, retained recovery, resumed recovery and private data'
+    # Pre-journal backups do not prove which new files were introduced.
+    # Reject without mutating either tree; never guess a rollback manifest.
+    $legacy=Join-Path (Split-Path $target) ('DocPilot-backup-'+[Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory $legacy | Out-Null
+    Set-Content (Join-Path $legacy 'DocPilot.exe') 'legacy-executable'
+    $failed=$false
+    try { & $installer -RecoverBackup $legacy } catch {$failed=$true}
+    Assert $failed 'Legacy backup must require an explicit recovery plan'
+    Assert ((Get-Content (Join-Path $legacy 'DocPilot.exe') -Raw).Trim() -eq 'legacy-executable') 'Legacy backup changed'
+    Assert ((Get-Content (Join-Path $target 'DocPilot.exe') -Raw).Trim() -eq 'old-executable') 'Legacy recovery changed installed program'
+    Write-Host 'PASS: legacy backup is preserved without guessing; lock preflight, atomic replacement, retained recovery, resumed recovery and private data'
 } finally {
     $env:LOCALAPPDATA=$originalLocal
     $env:APPDATA=$originalApp

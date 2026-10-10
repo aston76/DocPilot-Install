@@ -77,6 +77,11 @@ jobs:
         shell: pwsh
         run: |
           Expand-Archive release-package/DocPilot-Windows-portable.zip release-package/candidate
+          # Archive regression must test this historical candidate, not trigger a migration
+          # to whichever release is current. Keep real migration coverage in its own workflows.
+          $candidateExe=(Resolve-Path release-package/candidate/DocPilot.exe).Path
+          $isolationRule='DocPilot-archive-regression-'+[Guid]::NewGuid().ToString('N')
+          New-NetFirewallRule -Name $isolationRule -DisplayName $isolationRule -Direction Outbound -Program $candidateExe -Action Block | Out-Null
           $process = Start-Process (Resolve-Path release-package/candidate/DocPilot.exe) -WorkingDirectory (Resolve-Path release-package/candidate) -PassThru -WindowStyle Hidden
           try {
             $healthy = $false
@@ -132,7 +137,13 @@ jobs:
             }
             if(-not $found){throw 'Native change notification did not index the new file'}
             if(-not (Test-Path (Join-Path $nas 'DocPilot-Partage\v1'))){throw 'Shared index not published'}
-            Stop-Process -Id $process.Id -Force
+            Invoke-RestMethod http://127.0.0.1:8765/api/v1/system/quit -Method Post -ContentType 'application/json' -Body '{"quit":true}' -TimeoutSec 10 | Out-Null
+            $closed=$false
+            for($i=0;$i -lt 90;$i++) {
+              if(@(Get-CimInstance Win32_Process -Filter "Name = 'DocPilot.exe'" | Where-Object {$_.ExecutablePath -eq $candidateExe}).Count -eq 0){$closed=$true;break}
+              Start-Sleep -Seconds 1
+            }
+            if(-not $closed){throw 'Historical candidate did not close before restart verification'}
             $process = Start-Process (Resolve-Path release-package/candidate/DocPilot.exe) -WorkingDirectory (Resolve-Path release-package/candidate) -PassThru -WindowStyle Hidden
             $completed = $false
             for ($i = 0; $i -lt 60; $i++) {
@@ -143,7 +154,10 @@ jobs:
               Start-Sleep -Seconds 1
             }
             if (-not $completed) { throw 'SHA scan did not restart automatically on reopening' }
-          } finally { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+          } finally {
+            Get-CimInstance Win32_Process -Filter "Name = 'DocPilot.exe'" | Where-Object {$_.ExecutablePath -eq $candidateExe} | ForEach-Object {Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}
+            Remove-NetFirewallRule -Name $isolationRule
+          }
       - name: Verify staged upgrade preserves data and private profile
         shell: pwsh
         run: |

@@ -73,6 +73,7 @@ function Restore-Program([string]$backupPath, $entries) {
 if($RecoverBackup) {
     $RecoverBackup=(Get-Item -LiteralPath $RecoverBackup).FullName
     if((Split-Path $RecoverBackup -Parent) -ne $parent -or (Split-Path $RecoverBackup -Leaf) -notmatch '^DocPilot-backup-[0-9a-f]{32}$'){throw 'Dossier de sauvegarde invalide.'}
+    if(-not (Test-Path -LiteralPath (Join-Path $RecoverBackup 'recovery.json'))){throw 'Ancienne sauvegarde sans journal : restauration automatique impossible. Sauvegarde intacte ; faites vérifier le programme avant toute reprise.'}
     $journal=Get-Content -LiteralPath (Join-Path $RecoverBackup 'recovery.json') -Raw | ConvertFrom-Json
     if(-not (Restore-Program $RecoverBackup $journal)){throw "Restauration incomplète. Sauvegarde conservée : $RecoverBackup"}
     Remove-Item -LiteralPath $RecoverBackup -Recurse -Force

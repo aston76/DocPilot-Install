@@ -58,8 +58,9 @@ with zipfile.ZipFile(BASE) as base,zipfile.ZipFile(target,'w',zipfile.ZIP_DEFLAT
 forbidden={'escl-connections.json','archive-catalogue.json','archive-companies.json','docpilot.db','profile.sql','root-path.txt'}
 with zipfile.ZipFile(target) as result:
  assert result.testzip() is None
+ for name,blob in replace.items():assert result.read(name)==blob, name
  assert not any(pathlib.PurePosixPath(n).name in forbidden or n.endswith(('.der','.dpapi','.log')) or n.startswith('scanner/certificates/') for n in result.namelist())
 sha=hashlib.file_digest(target.open('rb'),'sha256').hexdigest()
 (OUT/(target.name+'.sha256')).write_text(sha+'  '+target.name+'\n',encoding='ascii')
-(OUT/'verification.json').write_text(json.dumps({'tag':TAG,'sha256':sha,'bytes':target.stat().st_size,'modified_modules':changed,'private_files_excluded':True},indent=2),encoding='utf-8')
+(OUT/'verification.json').write_text(json.dumps({'tag':TAG,'sha256':sha,'bytes':target.stat().st_size,'modified_modules':changed,'private_files_excluded':True,'installer_sha256':hashlib.sha256(replace['Install-DocPilot.ps1']).hexdigest()},indent=2),encoding='utf-8')
 print(json.dumps({'tag':TAG,'sha256':sha,'bytes':target.stat().st_size}),flush=True)
