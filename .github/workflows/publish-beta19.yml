@@ -161,31 +161,40 @@ jobs:
       - name: Verify staged upgrade preserves data and private profile
         shell: pwsh
         run: |
-          $data=Join-Path $env:LOCALAPPDATA 'DocPilot'
-          New-Item -ItemType Directory -Path $data -Force | Out-Null
-          $sentinel=Join-Path $data 'upgrade-sentinel.txt'
-          'keep-private-data' | Set-Content $sentinel
-          $installer=Resolve-Path release-package/candidate/Install-DocPilot.ps1
-          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
-          if($LASTEXITCODE -ne 0){throw 'First staged installation failed'}
-          $target=Join-Path $env:LOCALAPPDATA 'Programs/DocPilot'
-          'keep-profile' | Set-Content (Join-Path $target 'private-profile-sentinel.txt')
-          Push-Location $target
+          # This verifies a supplied ZIP and its own restart, independently of later public releases.
+          $stagedExe=Join-Path $env:LOCALAPPDATA 'Programs\DocPilot\DocPilot.exe'
+          $stagedRule='DocPilot-staged-regression-'+[Guid]::NewGuid().ToString('N')
+          New-NetFirewallRule -Name $stagedRule -DisplayName $stagedRule -Direction Outbound -Program $stagedExe -Action Block | Out-Null
           try {
+            $data=Join-Path $env:LOCALAPPDATA 'DocPilot'
+            New-Item -ItemType Directory -Path $data -Force | Out-Null
+            $sentinel=Join-Path $data 'upgrade-sentinel.txt'
+            'keep-private-data' | Set-Content $sentinel
+            $installer=Resolve-Path release-package/candidate/Install-DocPilot.ps1
             & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
-            if($LASTEXITCODE -ne 0){throw 'Repeated staged installation failed'}
-          } finally {Pop-Location}
-          if((Get-Content $sentinel).Trim() -ne 'keep-private-data'){throw 'User data changed'}
-          if((Get-Content (Join-Path $target 'private-profile-sentinel.txt')).Trim() -ne 'keep-profile'){throw 'Private program profile lost'}
-          if((Get-FileHash (Join-Path $target 'DocPilot.exe')).Hash -ne (Get-FileHash release-package/candidate/DocPilot.exe).Hash){throw 'Installed executable differs'}
-          $leftovers=@(Get-ChildItem (Split-Path $target -Parent) -Directory | Where-Object {$_.Name -like 'DocPilot-stage-*' -or $_.Name -like 'DocPilot-backup-*'})
-          if($leftovers.Count){throw 'Staging folders were not cleaned'}
-          & tools/beta19/test_update_silent.ps1
-          if($LASTEXITCODE -ne 0){throw 'Silent updater installation failed'}
-          $result=Get-Content (Join-Path $data 'update-state.json') -Raw | ConvertFrom-Json
-          if($result.status -ne 'complete' -or $result.percent -ne 100 -or $result.version -ne 'v0.1.0-beta.19'){throw 'Updater did not record completion'}
-          if((Get-Content $sentinel).Trim() -ne 'keep-private-data'){throw 'Updater changed data'}
-          if((Get-Content (Join-Path $target 'private-profile-sentinel.txt')).Trim() -ne 'keep-profile'){throw 'Updater lost profile'}
+            if($LASTEXITCODE -ne 0){throw 'First staged installation failed'}
+            $target=Join-Path $env:LOCALAPPDATA 'Programs/DocPilot'
+            'keep-profile' | Set-Content (Join-Path $target 'private-profile-sentinel.txt')
+            Push-Location $target
+            try {
+              & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+              if($LASTEXITCODE -ne 0){throw 'Repeated staged installation failed'}
+            } finally {Pop-Location}
+            if((Get-Content $sentinel).Trim() -ne 'keep-private-data'){throw 'User data changed'}
+            if((Get-Content (Join-Path $target 'private-profile-sentinel.txt')).Trim() -ne 'keep-profile'){throw 'Private program profile lost'}
+            if((Get-FileHash (Join-Path $target 'DocPilot.exe')).Hash -ne (Get-FileHash release-package/candidate/DocPilot.exe).Hash){throw 'Installed executable differs'}
+            $leftovers=@(Get-ChildItem (Split-Path $target -Parent) -Directory | Where-Object {$_.Name -like 'DocPilot-stage-*' -or $_.Name -like 'DocPilot-backup-*'})
+            if($leftovers.Count){throw 'Staging folders were not cleaned'}
+            & tools/beta19/test_update_silent.ps1
+            if($LASTEXITCODE -ne 0){throw 'Silent updater installation failed'}
+            $result=Get-Content (Join-Path $data 'update-state.json') -Raw | ConvertFrom-Json
+            if($result.status -ne 'complete' -or $result.percent -ne 100 -or $result.version -ne 'v0.1.0-beta.19'){throw 'Updater did not record completion'}
+            if((Get-Content $sentinel).Trim() -ne 'keep-private-data'){throw 'Updater changed data'}
+            if((Get-Content (Join-Path $target 'private-profile-sentinel.txt')).Trim() -ne 'keep-profile'){throw 'Updater lost profile'}
+          } finally {
+            Get-CimInstance Win32_Process -Filter "Name = 'DocPilot.exe'" | Where-Object {$_.ExecutablePath -eq $stagedExe} | ForEach-Object {Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue}
+            Remove-NetFirewallRule -Name $stagedRule
+          }
       - name: Verify direct upgrades from actual beta 12 and beta 14
         shell: pwsh
         run: |

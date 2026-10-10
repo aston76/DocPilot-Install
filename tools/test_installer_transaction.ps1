@@ -81,7 +81,12 @@ try {
     Assert $failed 'Legacy backup must require an explicit recovery plan'
     Assert ((Get-Content (Join-Path $legacy 'DocPilot.exe') -Raw).Trim() -eq 'legacy-executable') 'Legacy backup changed'
     Assert ((Get-Content (Join-Path $target 'DocPilot.exe') -Raw).Trim() -eq 'old-executable') 'Legacy recovery changed installed program'
-    Write-Host 'PASS: legacy backup is preserved without guessing; lock preflight, atomic replacement, retained recovery, resumed recovery and private data'
+    Remove-Item -LiteralPath (Join-Path $target 'DocPilot.exe')
+    & $installer
+    Assert ((Get-Content (Join-Path $target 'DocPilot.exe') -Raw).Trim() -eq 'third-executable') 'Full reinstall did not recover missing executable'
+    Assert ((Get-Content (Join-Path $legacy 'DocPilot.exe') -Raw).Trim() -eq 'legacy-executable') 'Full reinstall changed legacy backup'
+    Assert ((Get-Content (Join-Path $data 'document.txt') -Raw).Trim() -eq 'keep-document') 'Recovery reinstall changed data'
+    Write-Host 'PASS: legacy backup is preserved without guessing; full reinstall recovers missing executable; lock preflight, atomic replacement, retained recovery, resumed recovery and private data'
 } finally {
     $env:LOCALAPPDATA=$originalLocal
     $env:APPDATA=$originalApp
