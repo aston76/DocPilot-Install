@@ -9,6 +9,7 @@ function File-Sha256([string]$path) {
 $ErrorActionPreference = 'Stop'
 $source = $PSScriptRoot
 $target = Join-Path $env:LOCALAPPDATA 'Programs\DocPilot'
+if(Test-Path -LiteralPath $target){$target=(Get-Item -LiteralPath $target).FullName}
 $installedExe = Join-Path $target 'DocPilot.exe'
 if (-not (Test-Path -LiteralPath (Join-Path $source 'DocPilot.exe'))) { throw 'Extrayez le ZIP complet avant installation.' }
 
@@ -38,6 +39,8 @@ if ($running.Count -gt 0) {
 # Data lives elsewhere; keep the previous program for rollback.
 $parent=Split-Path $target -Parent
 New-Item -ItemType Directory -Force -Path $parent | Out-Null
+$parent=(Get-Item -LiteralPath $parent).FullName
+$target=Join-Path $parent 'DocPilot'
 $stage=Join-Path $parent ('DocPilot-stage-'+[Guid]::NewGuid().ToString('N'))
 $backup=Join-Path $parent ('DocPilot-backup-'+[Guid]::NewGuid().ToString('N'))
 $replaced=New-Object 'System.Collections.Generic.List[object]'
@@ -68,7 +71,7 @@ function Restore-Program([string]$backupPath, $entries) {
     return (-not $failed)
 }
 if($RecoverBackup) {
-    $RecoverBackup=[IO.Path]::GetFullPath($RecoverBackup)
+    $RecoverBackup=(Get-Item -LiteralPath $RecoverBackup).FullName
     if((Split-Path $RecoverBackup -Parent) -ne $parent -or (Split-Path $RecoverBackup -Leaf) -notmatch '^DocPilot-backup-[0-9a-f]{32}$'){throw 'Dossier de sauvegarde invalide.'}
     $journal=Get-Content -LiteralPath (Join-Path $RecoverBackup 'recovery.json') -Raw | ConvertFrom-Json
     if(-not (Restore-Program $RecoverBackup $journal)){throw "Restauration incomplète. Sauvegarde conservée : $RecoverBackup"}
@@ -78,6 +81,7 @@ if($RecoverBackup) {
 }
 try {
     New-Item -ItemType Directory -Force -Path $stage | Out-Null
+    $stage=(Get-Item -LiteralPath $stage).FullName
     Get-ChildItem -LiteralPath $source -Force | Where-Object {$_.Name -ne 'Install-DocPilot.ps1'} | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $stage -Recurse -Force
     }
