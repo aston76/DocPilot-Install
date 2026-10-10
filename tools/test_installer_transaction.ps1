@@ -38,6 +38,24 @@ try {
     Assert ((Get-Content (Join-Path $target 'DocPilot.exe') -Raw).Trim() -eq 'new-executable') 'Successful replacement failed'
     Assert ((Get-Content (Join-Path $target 'private.txt') -Raw).Trim() -eq 'keep-private') 'Private file changed'
     Assert ((Get-Content (Join-Path $data 'document.txt') -Raw).Trim() -eq 'keep-document') 'Data changed'
+    # Acquire a lock after preflight, after the installer rechecks process state.
+    # DocPilot.exe sorts before web/index.html, so this exercises partial rollback.
+    Set-Content (Join-Path $package 'DocPilot.exe') 'third-executable'
+    $script:queries=0
+    $script:lateLock=$null
+    function Get-CimInstance {
+        $script:queries++
+        if($script:queries -eq 2){$script:lateLock=[IO.File]::Open((Join-Path $target 'web\index.html'),'Open','Read','None')}
+        @()
+    }
+    try {
+        $failed=$false
+        try { & $installer } catch {$failed=$true}
+        Assert $failed 'Late lock must fail replacement'
+    } finally {if($script:lateLock){$script:lateLock.Dispose()}}
+    Assert ((Get-Content (Join-Path $target 'DocPilot.exe') -Raw).Trim() -eq 'new-executable') 'Partial rollback did not restore executable'
+    Assert (@(Get-ChildItem (Split-Path $target) -Filter 'DocPilot-backup-*').Count -eq 0) 'Successful rollback left backup'
+    function Get-CimInstance { @() }
     # Simulate an interrupted rollback: backup + durable journal, current file locked.
     $backup=Join-Path (Split-Path $target) ('DocPilot-backup-'+[Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory $backup | Out-Null
